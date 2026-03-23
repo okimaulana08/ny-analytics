@@ -129,6 +129,7 @@ return [
             'prefix_indexes' => true,
             'strict'      => false,
             'engine'      => null,
+            'timezone'    => '+07:00',
             'options'     => [],
         ],
 
