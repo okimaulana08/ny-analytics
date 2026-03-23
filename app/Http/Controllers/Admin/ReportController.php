@@ -666,65 +666,61 @@ class ReportController extends Controller
             ORDER BY week_start
         ');
 
-        // UTM attribution breakdown
+        // UTM attribution breakdown (attribution_events replaces user_attributions)
         $utmBreakdown = $db->select("
             SELECT
-                COALESCE(NULLIF(ua.first_utm_source,''), 'organic') AS source,
-                COALESCE(NULLIF(ua.first_utm_medium,''), '-') AS medium,
-                COALESCE(NULLIF(ua.first_utm_campaign,''), '-') AS campaign,
-                COUNT(*) AS events,
-                COALESCE(SUM(t.total_amount), 0) AS revenue
-            FROM user_attributions ua
-            LEFT JOIN transactions t ON t.id = ua.transaction_id AND t.status = 'paid'
+                COALESCE(NULLIF(ae.utm_source,''), 'organic') AS source,
+                COALESCE(NULLIF(ae.utm_medium,''), '-') AS medium,
+                COALESCE(NULLIF(ae.utm_campaign,''), '-') AS campaign,
+                COUNT(DISTINCT ae.user_id) AS users,
+                COUNT(*) AS events
+            FROM attribution_events ae
             GROUP BY source, medium, campaign
-            ORDER BY revenue DESC, events DESC
+            ORDER BY users DESC, events DESC
+            LIMIT 30
         ");
 
-        // Share activity by platform
-        $shareByPlatform = $db->select('
-            SELECT platform, COUNT(*) AS shares,
-                   COUNT(DISTINCT us.content_id) AS unique_content,
-                   COUNT(DISTINCT us.user_id) AS unique_users
-            FROM user_share us
-            GROUP BY platform ORDER BY shares DESC
-        ');
+        // Share activity — platform column removed, show top shared content directly
+        $shareByPlatform = [];
 
         // Most shared content
-        $mostShared = $db->select("
+        $mostShared = $db->select('
             SELECT c.title, COUNT(*) AS shares,
-                   GROUP_CONCAT(DISTINCT us.platform ORDER BY us.platform SEPARATOR ', ') AS platforms
+                   COUNT(DISTINCT us.user_id) AS unique_users
             FROM user_share us
             JOIN content c ON c.id = us.content_id
             GROUP BY us.content_id, c.title
             ORDER BY shares DESC LIMIT 10
-        ");
+        ');
 
-        // Short links breakdown
+        // Short links — clicks via attribution_events.affiliate_code
         $shortLinks = $db->select('
-            SELECT sl.code, sl.utm_medium, sl.utm_campaign,
+            SELECT sl.code, sl.affiliate_code, sl.utm_medium, sl.utm_campaign,
                    sl.created_at,
-                   (SELECT COUNT(*) FROM affiliate_clicks ac WHERE ac.affiliate_code = sl.affiliate_code) AS clicks
+                   (SELECT COUNT(*) FROM attribution_events ae
+                    WHERE ae.affiliate_code = sl.affiliate_code) AS clicks
             FROM short_links sl
             ORDER BY sl.created_at DESC
         ');
 
-        // New users with UTM vs organic (by week, limited to user_attributions data)
-        $utmUserCount = $db->selectOne("
+        // UTM vs organic user counts
+        $utmUserCount = $db->selectOne('
             SELECT
-                COUNT(DISTINCT CASE WHEN first_utm_source IS NOT NULL AND first_utm_source != '' THEN user_id END) AS from_paid,
-                COUNT(DISTINCT CASE WHEN first_utm_source IS NULL OR first_utm_source = '' THEN user_id END) AS organic
-            FROM user_attributions
-        ");
+                COUNT(DISTINCT CASE WHEN utm_source IS NOT NULL AND utm_source != \'\' THEN user_id END) AS from_paid,
+                (SELECT COUNT(*) FROM users) -
+                COUNT(DISTINCT CASE WHEN utm_source IS NOT NULL AND utm_source != \'\' THEN user_id END) AS organic
+            FROM attribution_events
+        ');
 
         // Conversion rate by UTM source
         $conversionBySource = $db->select("
             SELECT
-                COALESCE(NULLIF(ua.first_utm_source,''), 'organic') AS source,
-                COUNT(DISTINCT ua.user_id) AS attributed_users,
+                COALESCE(NULLIF(ae.utm_source,''), 'organic') AS source,
+                COUNT(DISTINCT ae.user_id) AS attributed_users,
                 COUNT(DISTINCT CASE WHEN t.status='paid' THEN t.user_id END) AS paying_users,
                 COALESCE(SUM(CASE WHEN t.status='paid' THEN t.total_amount ELSE 0 END), 0) AS revenue
-            FROM user_attributions ua
-            LEFT JOIN transactions t ON t.user_id = ua.user_id AND t.status='paid'
+            FROM attribution_events ae
+            LEFT JOIN transactions t ON t.user_id = ae.user_id AND t.status='paid'
             GROUP BY source
             ORDER BY revenue DESC
         ");
@@ -841,12 +837,12 @@ class ReportController extends Controller
             LIMIT {$perPage} OFFSET {$offset}
         ");
 
-        // ── Registration source (from user_attributions) ───────────────────────
+        // ── Registration source (from attribution_events) ──────────────────────
         $acqSource = $db->select("
             SELECT
-                COALESCE(first_utm_source, 'organic') AS source,
-                COUNT(*) AS cnt
-            FROM user_attributions
+                COALESCE(NULLIF(utm_source,''), 'organic') AS source,
+                COUNT(DISTINCT user_id) AS cnt
+            FROM attribution_events
             GROUP BY source
             ORDER BY cnt DESC
         ");

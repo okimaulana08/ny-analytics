@@ -80,8 +80,8 @@
 @if(count($utmBreakdown) > 0)
 <div class="flat-card mb-5">
     <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06]">
-        <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">UTM Attribution — Transaksi Berbayar</h2>
-        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Sumber traffic yang menghasilkan konversi</p>
+        <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">UTM Attribution</h2>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Sumber traffic berdasarkan attribution events</p>
     </div>
     <div class="overflow-x-auto">
     <table class="w-full min-w-max text-sm">
@@ -90,8 +90,8 @@
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Source</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Medium</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Campaign</th>
+                <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Users</th>
                 <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Events</th>
-                <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Revenue</th>
             </tr>
         </thead>
         <tbody>
@@ -110,10 +110,8 @@
                 </td>
                 <td class="px-5 py-3 font-mono text-[11px] text-slate-500">{{ $utm->medium }}</td>
                 <td class="px-5 py-3 font-mono text-[11px] text-slate-400 max-w-[200px] truncate" title="{{ $utm->campaign }}">{{ $utm->campaign }}</td>
-                <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{{ $utm->events }}</td>
-                <td class="px-5 py-3 text-right font-mono text-xs {{ $utm->revenue > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400' }}">
-                    {{ $utm->revenue > 0 ? 'Rp ' . number_format($utm->revenue, 0, ',', '.') : '—' }}
-                </td>
+                <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{{ number_format($utm->users) }}</td>
+                <td class="px-5 py-3 text-right font-mono text-xs text-slate-400">{{ number_format($utm->events) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -125,50 +123,33 @@
 {{-- Share Activity + Short Links --}}
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
 
-    {{-- Share by platform --}}
+    {{-- Most shared content --}}
     <div class="flat-card">
         <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06]">
-            <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Share Aktivitas</h2>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Platform yang digunakan user untuk berbagi</p>
+            <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Konten Paling Banyak Dibagikan</h2>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Cerita yang paling sering di-share oleh user</p>
         </div>
-        @if(count($shareByPlatform) > 0)
-        <div class="p-4 space-y-2">
-            @foreach($shareByPlatform as $s)
-            @php
-                $pct = count($shareByPlatform) > 0 ? round($s->shares / array_sum(array_column(json_decode(json_encode($shareByPlatform), true), 'shares')) * 100) : 0;
-                $platformColors = ['copy' => 'bg-blue-500', 'native' => 'bg-slate-500', 'facebook' => 'bg-blue-700', 'whatsapp' => 'bg-emerald-500', 'twitter' => 'bg-sky-500'];
-                $barColor = $platformColors[strtolower($s->platform)] ?? 'bg-violet-500';
-            @endphp
-            <div class="flex items-center gap-3">
-                <div class="w-20 text-[11px] font-semibold text-slate-600 dark:text-slate-300 capitalize truncate">{{ $s->platform }}</div>
-                <div class="flex-1 h-2 bg-slate-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
-                    <div class="{{ $barColor }} h-full rounded-full" style="width: {{ $pct }}%"></div>
-                </div>
-                <div class="w-16 text-right">
-                    <span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{{ $s->shares }}</span>
-                    <span class="text-[10px] text-slate-400 ml-1">share</span>
-                </div>
-                <div class="w-12 text-right font-mono text-[11px] text-slate-400">{{ $s->unique_content }} judul</div>
-            </div>
-            @endforeach
-        </div>
-
-        {{-- Most shared content --}}
         @if(count($mostShared) > 0)
-        <div class="px-5 pb-4 border-t border-slate-100 dark:border-white/[0.06] pt-4">
-            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Konten Paling Banyak Dibagikan</p>
+        @php $maxShares = $mostShared[0]->shares ?: 1; @endphp
+        <div class="p-4 space-y-2.5">
             @foreach($mostShared as $i => $ms)
-            <div class="flex items-start gap-2.5 {{ !$loop->last ? 'mb-2.5' : '' }}">
-                <span class="font-mono text-[11px] font-bold text-slate-400 mt-0.5 w-4 flex-shrink-0">{{ $i+1 }}</span>
+            @php $pct = round($ms->shares / $maxShares * 100); @endphp
+            <div class="flex items-center gap-3">
+                <span class="font-mono text-[11px] font-bold text-slate-400 w-4 flex-shrink-0">{{ $i+1 }}</span>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-medium text-slate-700 dark:text-slate-200 leading-snug line-clamp-1">{{ $ms->title }}</p>
-                    <p class="text-[11px] text-slate-400 font-mono">{{ $ms->shares }}× via {{ $ms->platforms }}</p>
+                    <p class="text-[12px] font-medium text-slate-700 dark:text-slate-200 truncate mb-1">{{ $ms->title }}</p>
+                    <div class="h-1.5 bg-slate-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                        <div class="bg-violet-500 h-full rounded-full" style="width: {{ $pct }}%"></div>
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{{ $ms->shares }}</span>
+                    <span class="text-[10px] text-slate-400 ml-1">share</span>
+                    <div class="text-[10px] text-slate-400">{{ $ms->unique_users }} user</div>
                 </div>
             </div>
             @endforeach
         </div>
-        @endif
-
         @else
         <div class="px-5 py-10 text-center text-sm text-slate-400">Belum ada aktivitas share.</div>
         @endif
