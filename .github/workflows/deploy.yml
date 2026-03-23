@@ -102,8 +102,9 @@ jobs:
             chmod -R 775 storage bootstrap/cache
             php artisan storage:link --force 2>/dev/null || true
 
-            # Jalankan migrasi
+            # Jalankan migrasi & seed (firstOrCreate — aman dijalankan berulang)
             php artisan migrate --force --no-interaction
+            php artisan db:seed --force --no-interaction
 
             # Bersihkan & rebuild cache
             php artisan config:clear
