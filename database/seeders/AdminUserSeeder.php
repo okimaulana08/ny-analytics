@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\AdminUser;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class AdminUserSeeder extends Seeder
 {
@@ -14,13 +13,13 @@ class AdminUserSeeder extends Seeder
             [
                 'name' => 'Admin Novelya',
                 'email' => 'admin@novelya.id',
-                'password' => Hash::make('secret123'),
+                'password' => 'secret123', // plain — setPasswordAttribute mutator handles hashing
                 'is_active' => true,
             ],
         ];
 
         foreach ($admins as $admin) {
-            AdminUser::firstOrCreate(
+            AdminUser::updateOrCreate(
                 ['email' => $admin['email']],
                 $admin
             );
