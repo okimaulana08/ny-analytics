@@ -870,7 +870,7 @@ class ReportController extends Controller
                    (SELECT COUNT(DISTINCT content_id) FROM read_history WHERE user_id = u.id AND is_deleted = 0) AS total_books,
                    EXISTS(
                        SELECT 1 FROM transactions WHERE user_id = u.id AND status = 'paid'
-                       AND expires_at > NOW()
+                       AND expired_at > NOW()
                    ) AS has_membership
             FROM users u
             LEFT JOIN profile p ON p.user_id = u.id
