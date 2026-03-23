@@ -35,13 +35,13 @@ class ReportController extends Controller
             ) r
         ");
 
-        $dailyTrend = $db->select("
+        $dailyTrend = $db->select('
             SELECT `date`, new_member, renewal_member,
                    (new_member + renewal_member) AS total
             FROM recap_daily
             WHERE `date` >= CURDATE() - INTERVAL 30 DAY
             ORDER BY `date` ASC
-        ");
+        ');
 
         $revByPlan = $db->select("
             SELECT mp.name AS plan_name, mp.duration_days, mp.price,
@@ -65,13 +65,12 @@ class ReportController extends Controller
             GROUP BY payment_gateway
         ");
 
-        $statusBreakdown = $db->select("
+        $statusBreakdown = $db->select('
             SELECT status, COUNT(*) AS cnt
             FROM transactions
             WHERE created_at >= NOW() - INTERVAL 30 DAY
             GROUP BY status
-        ");
-
+        ');
 
         $topRenewers = $db->select("
             SELECT u.name, u.email, MAX(p.phone_number) AS phone_number,
@@ -100,34 +99,34 @@ class ReportController extends Controller
     {
         $db = $this->db();
 
-        $dailyEngagement = $db->select("
+        $dailyEngagement = $db->select('
             SELECT `date`, `read`, `view`, `like`, `comment`, `share`
             FROM recap_daily
             WHERE `date` >= CURDATE() - INTERVAL 30 DAY
             ORDER BY `date` ASC
-        ");
+        ');
 
-        $engKpi = $db->selectOne("
+        $engKpi = $db->selectOne('
             SELECT
                 COALESCE(SUM(`read`),0) AS total_reads,
                 COALESCE(SUM(`view`),0) AS total_views
             FROM recap_daily
             WHERE `date` >= CURDATE() - INTERVAL 30 DAY
-        ");
+        ');
 
-        $activeReaders = $db->selectOne("
+        $activeReaders = $db->selectOne('
             SELECT COUNT(DISTINCT user_id) AS cnt
             FROM user_read
             WHERE created_at >= CURDATE() - INTERVAL 30 DAY
-        ");
+        ');
 
-        $avgDepth = $db->selectOne("
+        $avgDepth = $db->selectOne('
             SELECT ROUND(COUNT(*) / NULLIF(COUNT(DISTINCT user_id), 0), 1) AS val
             FROM user_read
             WHERE created_at >= CURDATE() - INTERVAL 30 DAY
-        ");
+        ');
 
-        $repeatReaders = $db->selectOne("
+        $repeatReaders = $db->selectOne('
             SELECT
                 (SELECT COUNT(DISTINCT user_id) FROM user_read
                  WHERE created_at >= CURDATE() - INTERVAL 30 DAY) AS total_readers,
@@ -138,9 +137,9 @@ class ReportController extends Controller
                 GROUP BY user_id
                 HAVING COUNT(DISTINCT DATE(created_at)) >= 2
             ) rep
-        ");
+        ');
 
-        $depthTrend = $db->select("
+        $depthTrend = $db->select('
             SELECT DATE(created_at) AS date,
                    COUNT(*) AS total_reads,
                    COUNT(DISTINCT user_id) AS active_readers,
@@ -149,9 +148,9 @@ class ReportController extends Controller
             WHERE created_at >= CURDATE() - INTERVAL 30 DAY
             GROUP BY DATE(created_at)
             ORDER BY date ASC
-        ");
+        ');
 
-        $topContent = $db->select("
+        $topContent = $db->select('
             SELECT c.id, c.title, c.read_count, c.view_count,
                    c.subscribe_count, c.like_count,
                    ROUND(c.rating, 2) AS rating,
@@ -164,9 +163,9 @@ class ReportController extends Controller
                      c.subscribe_count, c.like_count, c.rating
             ORDER BY c.read_count DESC
             LIMIT 20
-        ");
+        ');
 
-        $vtcByContent = $db->select("
+        $vtcByContent = $db->select('
             SELECT c.title,
                    SUM(rc.`view`) AS total_views,
                    SUM(rc.`read`) AS total_reads,
@@ -179,19 +178,19 @@ class ReportController extends Controller
             HAVING SUM(rc.`view`) > 0
             ORDER BY avg_chapters_per_view DESC
             LIMIT 15
-        ");
+        ');
 
-        $topContentId    = $topContent[0]->id ?? null;
+        $topContentId = $topContent[0]->id ?? null;
         $topContentTitle = $topContent[0]->title ?? '';
-        $chapterFunnel   = [];
+        $chapterFunnel = [];
         if ($topContentId) {
-            $chapterFunnel = $db->select("
+            $chapterFunnel = $db->select('
                 SELECT sequence, title, read_count
                 FROM chapters
                 WHERE content_id = ? AND is_published = 1 AND is_deleted = 0
                 ORDER BY sequence ASC
                 LIMIT 30
-            ", [$topContentId]);
+            ', [$topContentId]);
             $maxReads = collect($chapterFunnel)->max('read_count') ?: 1;
             foreach ($chapterFunnel as $ch) {
                 $ch->pct = round($ch->read_count * 100 / $maxReads, 1);
@@ -209,7 +208,7 @@ class ReportController extends Controller
     {
         $db = $this->db();
 
-        $expiringSoon = $db->select("
+        $expiringSoon = $db->select('
             SELECT u.name, u.email, p.phone_number, u.last_login_at,
                    um.expired_at, mp.name AS plan_name,
                    DATEDIFF(um.expired_at, NOW()) AS days_left
@@ -220,7 +219,7 @@ class ReportController extends Controller
             WHERE um.is_active = 1
               AND um.expired_at BETWEEN NOW() AND NOW() + INTERVAL 7 DAY
             ORDER BY um.expired_at ASC
-        ");
+        ');
 
         $churned = $db->select("
             SELECT * FROM (
@@ -287,10 +286,10 @@ class ReportController extends Controller
         ");
 
         $segmentCounts = [
-            'expiring'         => count($expiringSoon),
-            'churned'          => count($churned),
+            'expiring' => count($expiringSoon),
+            'churned' => count($churned),
             'never_subscribed' => count($neverSubscribed),
-            'dormant'          => count($dormant),
+            'dormant' => count($dormant),
         ];
 
         return view('admin.reports.segments', compact(
@@ -301,8 +300,8 @@ class ReportController extends Controller
 
     public function transactions(Request $request): View
     {
-        $db      = $this->db();
-        $status  = $request->query('status', '');
+        $db = $this->db();
+        $status = $request->query('status', '');
         $gateway = $request->query('gateway', '');
 
         $kpi = $db->selectOne("
@@ -317,15 +316,21 @@ class ReportController extends Controller
             FROM transactions
         ");
 
-        $page    = max(1, (int) $request->query('page', 1));
+        $page = max(1, (int) $request->query('page', 1));
         $perPage = 10;
-        $offset  = ($page - 1) * $perPage;
+        $offset = ($page - 1) * $perPage;
 
-        $where  = [];
+        $where = [];
         $params = [];
-        if ($status)  { $where[] = 't.status = ?';           $params[] = $status; }
-        if ($gateway) { $where[] = 't.payment_gateway = ?';  $params[] = $gateway; }
-        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        if ($status) {
+            $where[] = 't.status = ?';
+            $params[] = $status;
+        }
+        if ($gateway) {
+            $where[] = 't.payment_gateway = ?';
+            $params[] = $gateway;
+        }
+        $whereClause = $where ? 'WHERE '.implode(' AND ', $where) : '';
 
         $totalRow = $db->selectOne("
             SELECT COUNT(*) AS cnt
@@ -334,7 +339,7 @@ class ReportController extends Controller
             JOIN membership_plans mp ON mp.id = t.plan_id
             {$whereClause}
         ", $params);
-        $total      = (int) ($totalRow->cnt ?? 0);
+        $total = (int) ($totalRow->cnt ?? 0);
         $totalPages = (int) ceil($total / $perPage) ?: 1;
 
         $transactions = $db->select("
@@ -375,7 +380,7 @@ class ReportController extends Controller
 
     public function userList(Request $request): JsonResponse
     {
-        $db      = $this->db();
+        $db = $this->db();
         $segment = $request->query('segment', '');
 
         $users = match ($segment) {
@@ -410,7 +415,7 @@ class ReportController extends Controller
                 HAVING COUNT(t.id) > 1
                 ORDER BY COUNT(t.id) DESC
             "),
-            'active_readers' => $db->select("
+            'active_readers' => $db->select('
                 SELECT u.name, u.email, MAX(p.phone_number) AS phone_number, u.last_login_at,
                        COUNT(ur.id) AS total_reads,
                        COUNT(DISTINCT DATE(ur.created_at)) AS active_days,
@@ -421,8 +426,8 @@ class ReportController extends Controller
                 WHERE ur.created_at >= CURDATE() - INTERVAL 30 DAY
                 GROUP BY u.id, u.name, u.email, u.last_login_at
                 ORDER BY total_reads DESC
-            "),
-            'repeat_readers' => $db->select("
+            '),
+            'repeat_readers' => $db->select('
                 SELECT u.name, u.email, MAX(p.phone_number) AS phone_number, u.last_login_at,
                        COUNT(DISTINCT DATE(ur.created_at)) AS active_days,
                        COUNT(ur.id) AS total_reads,
@@ -434,14 +439,14 @@ class ReportController extends Controller
                 GROUP BY u.id, u.name, u.email, u.last_login_at
                 HAVING COUNT(DISTINCT DATE(ur.created_at)) >= 2
                 ORDER BY active_days DESC
-            "),
+            '),
             default => [],
         };
 
         return response()->json([
             'segment' => $segment,
-            'count'   => count($users),
-            'users'   => $users,
+            'count' => count($users),
+            'users' => $users,
         ]);
     }
 
@@ -488,10 +493,10 @@ class ReportController extends Controller
 
             // Book list per user (one batch query)
             $bookDetails = [];
-            if (!empty($users)) {
-                $ids          = array_map(fn($u) => $u->id, $users);
+            if (! empty($users)) {
+                $ids = array_map(fn ($u) => $u->id, $users);
                 $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                $books        = $db->select("
+                $books = $db->select("
                     SELECT
                         ur.user_id,
                         c.id AS content_id,
@@ -526,7 +531,7 @@ class ReportController extends Controller
         $db = $this->db();
 
         // KPI
-        $kpi = $db->selectOne("
+        $kpi = $db->selectOne('
             SELECT
                 (SELECT COUNT(*) FROM content WHERE is_published=1 AND is_deleted=0) AS total_content,
                 (SELECT COALESCE(SUM(read_count),0) FROM content WHERE is_published=1 AND is_deleted=0) AS total_reads,
@@ -535,10 +540,10 @@ class ReportController extends Controller
                 (SELECT COUNT(DISTINCT user_id) FROM user_read) AS unique_readers,
                 (SELECT COUNT(DISTINCT content_id) FROM user_read WHERE DATE(created_at) = CURDATE()) AS active_today,
                 (SELECT COUNT(*) FROM content WHERE is_published=1 AND is_deleted=0 AND is_completed=1) AS completed_content
-        ");
+        ');
 
         // Category breakdown
-        $byCategory = $db->select("
+        $byCategory = $db->select('
             SELECT mcc.name AS category,
                    COUNT(c.id) AS content_count,
                    COALESCE(SUM(c.read_count),0) AS total_reads,
@@ -550,10 +555,10 @@ class ReportController extends Controller
             WHERE c.is_published=1 AND c.is_deleted=0
             GROUP BY mcc.id, mcc.name
             ORDER BY total_reads DESC
-        ");
+        ');
 
         // Daily trend 30 days (from recap_content)
-        $dailyTrend = $db->select("
+        $dailyTrend = $db->select('
             SELECT DATE(rc.`date`) AS day,
                    SUM(rc.`read`) AS total_reads,
                    SUM(rc.`view`) AS total_views,
@@ -562,36 +567,36 @@ class ReportController extends Controller
             WHERE rc.`date` >= NOW() - INTERVAL 30 DAY
             GROUP BY DATE(rc.`date`)
             ORDER BY day
-        ");
+        ');
 
         // Build full 30-day array
         $trendByDate = collect($dailyTrend)->keyBy('day');
-        $trendDates  = [];
+        $trendDates = [];
         for ($i = 29; $i >= 0; $i--) {
             $trendDates[] = now()->subDays($i)->format('Y-m-d');
         }
-        $trend30d = array_map(fn($d) => [
-            'date'       => $d,
-            'reads'      => (int)($trendByDate->get($d)?->total_reads ?? 0),
-            'views'      => (int)($trendByDate->get($d)?->total_views ?? 0),
-            'subscribes' => (int)($trendByDate->get($d)?->subscribes ?? 0),
+        $trend30d = array_map(fn ($d) => [
+            'date' => $d,
+            'reads' => (int) ($trendByDate->get($d)?->total_reads ?? 0),
+            'views' => (int) ($trendByDate->get($d)?->total_views ?? 0),
+            'subscribes' => (int) ($trendByDate->get($d)?->subscribes ?? 0),
         ], $trendDates);
 
         // Top content table (paginated)
-        $sort    = $request->query('sort', 'reads');
-        $page    = max(1, (int) $request->query('page', 1));
+        $sort = $request->query('sort', 'reads');
+        $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
-        $offset  = ($page - 1) * $perPage;
+        $offset = ($page - 1) * $perPage;
 
         $orderMap = [
-            'reads'      => 'c.read_count DESC',
-            'views'      => 'c.view_count DESC',
+            'reads' => 'c.read_count DESC',
+            'views' => 'c.view_count DESC',
             'subscribes' => 'c.subscribe_count DESC',
-            'recent'     => 'c.published_at DESC',
+            'recent' => 'c.published_at DESC',
         ];
         $orderSql = $orderMap[$sort] ?? $orderMap['reads'];
 
-        $total      = $db->selectOne("SELECT COUNT(*) AS cnt FROM content c WHERE c.is_published=1 AND c.is_deleted=0")->cnt;
+        $total = $db->selectOne('SELECT COUNT(*) AS cnt FROM content c WHERE c.is_published=1 AND c.is_deleted=0')->cnt;
         $totalPages = (int) ceil($total / $perPage);
 
         $contents = $db->select("
@@ -621,13 +626,13 @@ class ReportController extends Controller
         ");
 
         // Top 5 by subscribe (for highlight cards)
-        $topBySubscribe = $db->select("
+        $topBySubscribe = $db->select('
             SELECT c.title, c.subscribe_count, c.read_count, c.view_count,
                    ROUND(c.subscribe_count / NULLIF(c.view_count,0)*100, 1) AS convert_rate
             FROM content c
             WHERE c.is_published=1 AND c.is_deleted=0 AND c.subscribe_count > 0
             ORDER BY c.subscribe_count DESC LIMIT 5
-        ");
+        ');
 
         return view('admin.reports.content', compact(
             'kpi', 'byCategory', 'trend30d', 'contents',
@@ -652,14 +657,14 @@ class ReportController extends Controller
         ");
 
         // Weekly registration trend 12 weeks
-        $regWeekly = $db->select("
+        $regWeekly = $db->select('
             SELECT DATE(DATE_SUB(created_at, INTERVAL WEEKDAY(created_at) DAY)) AS week_start,
                    COUNT(*) AS new_users
             FROM users
             WHERE created_at >= NOW() - INTERVAL 12 WEEK
             GROUP BY week_start
             ORDER BY week_start
-        ");
+        ');
 
         // UTM attribution breakdown
         $utmBreakdown = $db->select("
@@ -676,13 +681,13 @@ class ReportController extends Controller
         ");
 
         // Share activity by platform
-        $shareByPlatform = $db->select("
+        $shareByPlatform = $db->select('
             SELECT platform, COUNT(*) AS shares,
                    COUNT(DISTINCT us.content_id) AS unique_content,
                    COUNT(DISTINCT us.user_id) AS unique_users
             FROM user_share us
             GROUP BY platform ORDER BY shares DESC
-        ");
+        ');
 
         // Most shared content
         $mostShared = $db->select("
@@ -695,13 +700,13 @@ class ReportController extends Controller
         ");
 
         // Short links breakdown
-        $shortLinks = $db->select("
+        $shortLinks = $db->select('
             SELECT sl.code, sl.utm_medium, sl.utm_campaign,
                    sl.created_at,
                    (SELECT COUNT(*) FROM affiliate_clicks ac WHERE ac.affiliate_code = sl.affiliate_code) AS clicks
             FROM short_links sl
             ORDER BY sl.created_at DESC
-        ");
+        ');
 
         // New users with UTM vs organic (by week, limited to user_attributions data)
         $utmUserCount = $db->selectOne("
@@ -748,13 +753,13 @@ class ReportController extends Controller
         ");
 
         // ── 30-day trend: registrations & logins ──────────────────────────────
-        $regTrend = $db->select("
+        $regTrend = $db->select('
             SELECT DATE(created_at) AS `date`, COUNT(*) AS cnt
             FROM users
             WHERE created_at >= NOW() - INTERVAL 30 DAY
             GROUP BY DATE(created_at)
             ORDER BY `date`
-        ");
+        ');
 
         $loginTrend = $db->select("
             SELECT DATE(created_at) AS `date`, COUNT(*) AS logins
@@ -765,43 +770,43 @@ class ReportController extends Controller
         ");
 
         // Merge into a unified 30-day array keyed by date
-        $regByDate    = collect($regTrend)->keyBy('date');
-        $loginByDate  = collect($loginTrend)->keyBy('date');
-        $trendDates   = [];
+        $regByDate = collect($regTrend)->keyBy('date');
+        $loginByDate = collect($loginTrend)->keyBy('date');
+        $trendDates = [];
         for ($i = 29; $i >= 0; $i--) {
             $trendDates[] = now()->subDays($i)->format('Y-m-d');
         }
-        $trendData = array_map(fn($d) => [
-            'date'   => $d,
-            'reg'    => $regByDate->get($d)?->cnt ?? 0,
+        $trendData = array_map(fn ($d) => [
+            'date' => $d,
+            'reg' => $regByDate->get($d)?->cnt ?? 0,
             'logins' => $loginByDate->get($d)?->logins ?? 0,
         ], $trendDates);
 
         // ── Active users per hour today ────────────────────────────────────────
-        $activeByHour = $db->select("
+        $activeByHour = $db->select('
             SELECT HOUR(created_at) AS hr, COUNT(DISTINCT user_id) AS cnt
             FROM user_read
             WHERE DATE(created_at) = CURDATE()
             GROUP BY HOUR(created_at)
             ORDER BY hr
-        ");
+        ');
 
         // ── User table (paginated) ─────────────────────────────────────────────
-        $filter  = $request->query('filter', 'all');  // all | new | subscribed | never_login
-        $page    = max(1, (int) $request->query('page', 1));
+        $filter = $request->query('filter', 'all');  // all | new | subscribed | never_login
+        $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
-        $offset  = ($page - 1) * $perPage;
+        $offset = ($page - 1) * $perPage;
 
-        $whereFilter = match($filter) {
-            'new'         => "AND u.created_at >= NOW() - INTERVAL 7 DAY",
-            'subscribed'  => "AND um.is_active = 1",
-            'never_login' => "AND u.last_login_at IS NULL",
-            default       => "",
+        $whereFilter = match ($filter) {
+            'new' => 'AND u.created_at >= NOW() - INTERVAL 7 DAY',
+            'subscribed' => 'AND um.is_active = 1',
+            'never_login' => 'AND u.last_login_at IS NULL',
+            default => '',
         };
 
         $joinFilter = ($filter === 'subscribed')
-            ? "JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1"
-            : "LEFT JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1";
+            ? 'JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1'
+            : 'LEFT JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1';
 
         $countSql = "
             SELECT COUNT(DISTINCT u.id) AS cnt
@@ -810,7 +815,7 @@ class ReportController extends Controller
             LEFT JOIN profile p ON p.user_id = u.id
             WHERE 1=1 {$whereFilter}
         ";
-        $total      = $db->selectOne($countSql)->cnt;
+        $total = $db->selectOne($countSql)->cnt;
         $totalPages = (int) ceil($total / $perPage);
 
         $users = $db->select("
@@ -850,5 +855,117 @@ class ReportController extends Controller
             'kpi', 'trendData', 'activeByHour', 'acqSource',
             'users', 'page', 'perPage', 'total', 'totalPages', 'filter'
         ));
+    }
+
+    // ── User Story Recommendation ────────────────────────────────────────────
+
+    public function userRecommend(string $userId): JsonResponse
+    {
+        $db = $this->db();
+
+        $user = $db->selectOne("
+            SELECT u.id, u.name, u.email, p.phone_number,
+                   u.created_at AS registered_at,
+                   (SELECT COUNT(*) FROM user_read WHERE user_id = u.id) AS total_chapters,
+                   (SELECT COUNT(DISTINCT content_id) FROM read_history WHERE user_id = u.id AND is_deleted = 0) AS total_books,
+                   EXISTS(
+                       SELECT 1 FROM transactions WHERE user_id = u.id AND status = 'paid'
+                       AND expires_at > NOW()
+                   ) AS has_membership
+            FROM users u
+            LEFT JOIN profile p ON p.user_id = u.id
+            WHERE u.id = ?
+        ", [$userId]);
+
+        if (! $user) {
+            return response()->json(['error' => 'User tidak ditemukan'], 404);
+        }
+
+        $topCategories = $db->select('
+            SELECT mcc.id, mcc.name, COUNT(rh.id) AS read_count
+            FROM read_history rh
+            JOIN content c ON c.id = rh.content_id AND c.is_deleted = 0
+            JOIN master_content_category mcc ON mcc.id = c.category_id
+            WHERE rh.user_id = ? AND rh.is_deleted = 0
+            GROUP BY mcc.id, mcc.name
+            ORDER BY read_count DESC
+            LIMIT 4
+        ', [$userId]);
+
+        $recentReads = $db->select('
+            SELECT c.title, mcc.name AS category, rh.created_at
+            FROM read_history rh
+            JOIN content c ON c.id = rh.content_id AND c.is_deleted = 0
+            LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+            WHERE rh.user_id = ? AND rh.is_deleted = 0
+            ORDER BY rh.created_at DESC
+            LIMIT 6
+        ', [$userId]);
+
+        $categoryIds = array_column($topCategories, 'id');
+
+        if (empty($categoryIds)) {
+            $recommendations = $db->select('
+                SELECT c.id, c.title, c.synopsis, c.tags,
+                       c.subscribe_count, c.read_count, c.rating,
+                       mcc.name AS category
+                FROM content c
+                LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+                WHERE c.is_published = 1 AND c.is_deleted = 0
+                ORDER BY c.subscribe_count DESC, c.read_count DESC
+                LIMIT 5
+            ');
+        } else {
+            $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
+            $recommendations = $db->select("
+                SELECT c.id, c.title, c.synopsis, c.tags,
+                       c.subscribe_count, c.read_count, c.rating,
+                       mcc.name AS category
+                FROM content c
+                LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+                WHERE c.is_published = 1 AND c.is_deleted = 0
+                  AND c.category_id IN ({$placeholders})
+                  AND c.id NOT IN (
+                      SELECT DISTINCT content_id FROM read_history
+                      WHERE user_id = ? AND is_deleted = 0
+                  )
+                ORDER BY c.subscribe_count DESC, c.read_count DESC, c.rating DESC
+                LIMIT 5
+            ", array_merge($categoryIds, [$userId]));
+
+            if (count($recommendations) < 3) {
+                $existingIds = array_map(fn ($r) => $r->id, $recommendations);
+                $excludeIds = array_merge($categoryIds, [$userId], $existingIds ?: ['__none__']);
+                $exPlaceholders = implode(',', array_fill(0, count($existingIds ?: ['__none__']), '?'));
+                $catPlaceholders = implode(',', array_fill(0, count($categoryIds), '?'));
+                $limit = 5 - count($recommendations);
+
+                $extra = $db->select("
+                    SELECT c.id, c.title, c.synopsis, c.tags,
+                           c.subscribe_count, c.read_count, c.rating,
+                           mcc.name AS category
+                    FROM content c
+                    LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+                    WHERE c.is_published = 1 AND c.is_deleted = 0
+                      AND c.category_id NOT IN ({$catPlaceholders})
+                      AND c.id NOT IN ({$exPlaceholders})
+                      AND c.id NOT IN (
+                          SELECT DISTINCT content_id FROM read_history
+                          WHERE user_id = ? AND is_deleted = 0
+                      )
+                    ORDER BY c.subscribe_count DESC, c.read_count DESC
+                    LIMIT {$limit}
+                ", array_merge($categoryIds, $existingIds ?: ['__none__'], [$userId]));
+
+                $recommendations = array_merge($recommendations, $extra);
+            }
+        }
+
+        return response()->json([
+            'user' => $user,
+            'top_categories' => $topCategories,
+            'recent_reads' => $recentReads,
+            'recommendations' => $recommendations,
+        ]);
     }
 }

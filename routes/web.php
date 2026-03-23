@@ -33,6 +33,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::get('/reports/user-activity',    [ReportController::class, 'userActivity'])->name('reports.user-activity');
     Route::get('/reports/content',          [ReportController::class, 'contentAnalytics'])->name('reports.content');
     Route::get('/reports/acquisition',      [ReportController::class, 'acquisition'])->name('reports.acquisition');
+    Route::get('/reports/user-recommend/{userId}', [ReportController::class, 'userRecommend'])->name('reports.user-recommend');
 
     Route::prefix('assistant')->name('assistant.')->group(function () {
         Route::get('/stakeholder',             [AssistantController::class, 'stakeholder'])->name('stakeholder');
