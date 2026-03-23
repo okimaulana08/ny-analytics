@@ -1,0 +1,120 @@
+name: Deploy to cPanel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. PHP setup ───────────────────────────────────────────────────────
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo, pdo_mysql, zip, intl, gd
+          coverage: none
+
+      # ── 3. Composer ────────────────────────────────────────────────────────
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      # ── 4. Node / Vite build ───────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Build Vite assets
+        run: npm run build
+
+      # ── 5. Prepare .env for build cache (tidak di-deploy ke server) ────────
+      - name: Create temporary .env for artisan optimize
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      # ── 6. Deploy via rsync over SSH ───────────────────────────────────────
+      # Secrets yang perlu di-set di GitHub → Settings → Secrets:
+      #   SSH_HOST         : IP atau domain cPanel (mis: 103.x.x.x)
+      #   SSH_USERNAME     : username cPanel SSH
+      #   SSH_PRIVATE_KEY  : isi file private key (-----BEGIN OPENSSH PRIVATE KEY-----)
+      #   SSH_PORT         : port SSH cPanel, biasanya 22 atau 2222
+      #   DEPLOY_PATH      : path absolut di server (mis: /home/username/public_html)
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Setup SSH key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Sync files to server via rsync
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='node_modules' \
+            --exclude='storage/logs/*.log' \
+            --exclude='storage/framework/sessions' \
+            --exclude='storage/framework/cache' \
+            --exclude='.claude' \
+            --exclude='boost.json' \
+            --exclude='.mcp.json' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+      # ── 7. Post-deploy commands di server ──────────────────────────────────
+      - name: Run post-deploy commands
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Pastikan storage & bootstrap/cache writable
+            chmod -R 775 storage bootstrap/cache
+            php artisan storage:link --force 2>/dev/null || true
+
+            # Jalankan migrasi
+            php artisan migrate --force --no-interaction
+
+            # Bersihkan & rebuild cache
+            php artisan config:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            # Restart queue worker (jika ada)
+            php artisan queue:restart 2>/dev/null || true
+
+            echo "✅ Deploy selesai — $(date '+%Y-%m-%d %H:%M:%S WIB')"
