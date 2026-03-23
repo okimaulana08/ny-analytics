@@ -906,7 +906,7 @@ class ReportController extends Controller
 
         if (empty($categoryIds)) {
             $recommendations = $db->select('
-                SELECT c.id, c.title, c.synopsis, c.tags,
+                SELECT c.id, c.title, c.slug, c.synopsis, c.tags,
                        c.subscribe_count, c.read_count, c.rating,
                        mcc.name AS category
                 FROM content c
@@ -918,7 +918,7 @@ class ReportController extends Controller
         } else {
             $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
             $recommendations = $db->select("
-                SELECT c.id, c.title, c.synopsis, c.tags,
+                SELECT c.id, c.title, c.slug, c.synopsis, c.tags,
                        c.subscribe_count, c.read_count, c.rating,
                        mcc.name AS category
                 FROM content c
@@ -941,7 +941,7 @@ class ReportController extends Controller
                 $limit = 5 - count($recommendations);
 
                 $extra = $db->select("
-                    SELECT c.id, c.title, c.synopsis, c.tags,
+                    SELECT c.id, c.title, c.slug, c.synopsis, c.tags,
                            c.subscribe_count, c.read_count, c.rating,
                            mcc.name AS category
                     FROM content c

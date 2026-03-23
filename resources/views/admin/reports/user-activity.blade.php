@@ -265,12 +265,15 @@
                     </div>
                     <div class="text-[10px] text-slate-400 mb-2 flex flex-wrap gap-1.5">
                         <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{nama}</span>
-                        <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{judul_1}</span>
-                        <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{judul_2}</span>
-                        <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{judul_3}</span>
                         <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{genre_favorit}</span>
+                        <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{judul_1}</span>
+                        <span class="bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded font-mono">{link_1}</span>
+                        <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{judul_2}</span>
+                        <span class="bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded font-mono">{link_2}</span>
+                        <span class="bg-slate-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded font-mono">{judul_3}</span>
+                        <span class="bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded font-mono">{link_3}</span>
                     </div>
-                    <textarea id="rec-wa-template" rows="8"
+                    <textarea id="rec-wa-template" rows="12"
                         class="w-full text-[12px] font-mono bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] rounded-xl px-3 py-2.5 text-slate-700 dark:text-slate-200 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/30 leading-relaxed"></textarea>
                     <div class="mt-1 text-[10px] text-slate-400" id="rec-wa-preview-label">Preview: <span id="rec-wa-char-count">0</span> karakter</div>
                 </div>
@@ -355,8 +358,13 @@ const DEFAULT_TEMPLATE = `Halo {nama}! 👋
 Berdasarkan genre favoritmu ({genre_favorit}), kami punya rekomendasi cerita seru untukmu:
 
 📖 {judul_1}
+🔗 {link_1}
+
 📖 {judul_2}
+🔗 {link_2}
+
 📖 {judul_3}
+🔗 {link_3}
 
 Langsung baca di aplikasi Novelya ya! Jangan sampai ketinggalan cerita seru 🎉`;
 
@@ -403,12 +411,12 @@ function renderRecModal(data) {
 
     // Stats
     document.getElementById('rec-stats').innerHTML = [
-        { label: 'Total Buku', value: user.total_books ?? 0, color: 'violet' },
-        { label: 'Total Chapter', value: user.total_chapters ?? 0, color: 'blue' },
-        { label: 'Status', value: user.has_membership ? 'Member' : 'Gratis', color: user.has_membership ? 'emerald' : 'amber' },
+        { label: 'Total Buku',    value: Number(user.total_books    ?? 0).toLocaleString('id-ID'), color: 'violet' },
+        { label: 'Total Chapter', value: Number(user.total_chapters ?? 0).toLocaleString('id-ID'), color: 'blue' },
+        { label: 'Status',        value: user.has_membership ? 'Member' : 'Gratis',                color: user.has_membership ? 'emerald' : 'amber' },
     ].map(s => `
         <div class="flat-card p-3 text-center">
-            <div class="font-mono text-lg font-bold text-${s.color}-600 dark:text-${s.color}-400">${Number(s.value).toLocaleString('id-ID')}</div>
+            <div class="font-mono text-lg font-bold text-${s.color}-600 dark:text-${s.color}-400">${s.value}</div>
             <div class="text-[10px] text-slate-400 mt-0.5">${s.label}</div>
         </div>`).join('');
 
@@ -490,14 +498,18 @@ function buildWaMessage() {
     if (!_recData) { return ''; }
     const { user, top_categories, recommendations } = _recData;
     const tmpl  = document.getElementById('rec-wa-template').value;
-    const titles = recommendations || [];
-    const genre  = (top_categories || []).map(c => c.name).join(', ') || 'favoritmu';
+    const recs  = recommendations || [];
+    const genre = (top_categories || []).map(c => c.name).join(', ') || 'favoritmu';
+    const link  = slug => slug ? `https://novelya.id/detail/${slug}` : '';
     return tmpl
-        .replace(/\{nama\}/g, user.name || '')
+        .replace(/\{nama\}/g,         user.name || '')
         .replace(/\{genre_favorit\}/g, genre)
-        .replace(/\{judul_1\}/g, titles[0]?.title || '')
-        .replace(/\{judul_2\}/g, titles[1]?.title || '')
-        .replace(/\{judul_3\}/g, titles[2]?.title || '');
+        .replace(/\{judul_1\}/g,      recs[0]?.title || '')
+        .replace(/\{link_1\}/g,       link(recs[0]?.slug))
+        .replace(/\{judul_2\}/g,      recs[1]?.title || '')
+        .replace(/\{link_2\}/g,       link(recs[1]?.slug))
+        .replace(/\{judul_3\}/g,      recs[2]?.title || '')
+        .replace(/\{link_3\}/g,       link(recs[2]?.slug));
 }
 
 function updateWaCharCount() {
