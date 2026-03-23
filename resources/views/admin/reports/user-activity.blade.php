@@ -470,11 +470,8 @@ function renderRecModal(data) {
         }).join('')
         : `<div class="text-center py-6 text-slate-400 text-sm">Tidak ada rekomendasi ditemukan.</div>`;
 
-    // WA template
-    const topGenre = cats.length ? cats[0].name : 'favoritmu';
-    const titles   = recs.map(r => r.title);
-    const tmpl = localStorage.getItem('rec_wa_template') || DEFAULT_TEMPLATE;
-    document.getElementById('rec-wa-template').value = tmpl;
+    // WA template — resolve placeholders immediately so textarea shows final message
+    document.getElementById('rec-wa-template').value = buildWaMessageFromTemplate(DEFAULT_TEMPLATE, data);
     updateWaCharCount();
 
     // Send WA button
@@ -494,33 +491,36 @@ function renderRecModal(data) {
     document.getElementById('rec-body').classList.remove('hidden');
 }
 
-function buildWaMessage() {
-    if (!_recData) { return ''; }
-    const { user, top_categories, recommendations } = _recData;
-    const tmpl  = document.getElementById('rec-wa-template').value;
+function buildWaMessageFromTemplate(tmpl, data) {
+    const { user, top_categories, recommendations } = data || _recData || {};
+    if (!user) { return tmpl; }
     const recs  = recommendations || [];
     const genre = (top_categories || []).map(c => c.name).join(', ') || 'favoritmu';
     const link  = slug => slug ? `https://novelya.id/detail/${slug}` : '';
     return tmpl
-        .replace(/\{nama\}/g,         user.name || '')
-        .replace(/\{genre_favorit\}/g, genre)
-        .replace(/\{judul_1\}/g,      recs[0]?.title || '')
-        .replace(/\{link_1\}/g,       link(recs[0]?.slug))
-        .replace(/\{judul_2\}/g,      recs[1]?.title || '')
-        .replace(/\{link_2\}/g,       link(recs[1]?.slug))
-        .replace(/\{judul_3\}/g,      recs[2]?.title || '')
-        .replace(/\{link_3\}/g,       link(recs[2]?.slug));
+        .replace(/\{nama\}/g,          user.name || '')
+        .replace(/\{genre_favorit\}/g,  genre)
+        .replace(/\{judul_1\}/g,       recs[0]?.title || '')
+        .replace(/\{link_1\}/g,        link(recs[0]?.slug))
+        .replace(/\{judul_2\}/g,       recs[1]?.title || '')
+        .replace(/\{link_2\}/g,        link(recs[1]?.slug))
+        .replace(/\{judul_3\}/g,       recs[2]?.title || '')
+        .replace(/\{link_3\}/g,        link(recs[2]?.slug));
+}
+
+function buildWaMessage() {
+    if (!_recData) { return ''; }
+    return document.getElementById('rec-wa-template').value;
 }
 
 function updateWaCharCount() {
     const txt = document.getElementById('rec-wa-template').value;
     document.getElementById('rec-wa-char-count').textContent = txt.length;
-    localStorage.setItem('rec_wa_template', txt);
 }
 
 function resetWaTemplate() {
-    document.getElementById('rec-wa-template').value = DEFAULT_TEMPLATE;
-    localStorage.removeItem('rec_wa_template');
+    if (!_recData) { return; }
+    document.getElementById('rec-wa-template').value = buildWaMessageFromTemplate(DEFAULT_TEMPLATE, _recData);
     updateWaCharCount();
 }
 
