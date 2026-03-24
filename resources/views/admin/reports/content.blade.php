@@ -5,6 +5,7 @@
 @section('content')
 
 {{-- KPI Cards --}}
+
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
     <div class="glass-card p-5">
         <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Konten Publish</p>
