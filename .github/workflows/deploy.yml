@@ -12,6 +12,20 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # ── 0. Notify start ────────────────────────────────────────────────────
+      - name: Notify deploy started
+        uses: appleboy/telegram-action@v1.0.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          message: |
+            🚀 *Deploy dimulai*
+            Repo: `${{ github.repository }}`
+            Branch: `${{ github.ref_name }}`
+            Commit: `${{ github.sha }}`
+            Oleh: ${{ github.actor }}
+            [Lihat workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
       # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,3 +132,36 @@ jobs:
             php artisan queue:restart 2>/dev/null || true
 
             echo "✅ Deploy selesai — $(date '+%Y-%m-%d %H:%M:%S WIB')"
+
+      # ── 8. Notify result ───────────────────────────────────────────────────
+      - name: Notify success
+        if: success()
+        uses: appleboy/telegram-action@v1.0.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          message: |
+            ✅ *Deploy berhasil!*
+            Repo: `${{ github.repository }}`
+            Branch: `${{ github.ref_name }}`
+            Commit: [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            Oleh: ${{ github.actor }}
+            Pesan: ${{ github.event.head_commit.message }}
+            [Lihat workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Notify failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          message: |
+            ❌ *Deploy GAGAL!*
+            Repo: `${{ github.repository }}`
+            Branch: `${{ github.ref_name }}`
+            Commit: [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            Oleh: ${{ github.actor }}
+            ⚠️ Cek log untuk detail error:
+            [Lihat workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
