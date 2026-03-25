@@ -184,13 +184,13 @@
 
     {{-- Segment A: Expiring --}}
     <div id="seg-expiring" class="seg-panel overflow-x-auto">
-        <table class="w-full min-w-max text-sm">
+        <table id="tbl-expiring" class="w-full min-w-max text-sm">
             <thead><tr class="border-b border-slate-100 dark:border-white/[0.05]">
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Plan</th>
-                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Expires</th>
-                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sisa Hari</th>
-                <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Last Login</th>
+                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-expiring',2)" data-col="2">Expires <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
+                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-expiring',3)" data-col="3">Days Left <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
+                <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-expiring',4)" data-col="4">Last Login <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">WA</th>
             </tr></thead>
             <tbody>
@@ -202,11 +202,11 @@
                         @if($u->phone_number)<div class="text-[11px] text-slate-400 font-mono">{{ $u->phone_number }}</div>@endif
                     </td>
                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $u->plan_name }}</td>
-                    <td class="px-5 py-3 text-center font-mono text-xs text-slate-500">{{ \Carbon\Carbon::parse($u->expired_at)->format('d/m/Y H:i') }}</td>
-                    <td class="px-5 py-3 text-center">
-                        <span class="font-mono text-xs font-bold {{ $u->days_left <= 1 ? 'text-red-500' : 'text-amber-500 dark:text-amber-400' }}">{{ $u->days_left }}h</span>
+                    <td class="px-5 py-3 text-center font-mono text-xs text-slate-500" data-val="{{ \Carbon\Carbon::parse($u->expired_at)->format('Y-m-d H:i') }}">{{ \Carbon\Carbon::parse($u->expired_at)->format('d/m/Y H:i') }}</td>
+                    <td class="px-5 py-3 text-center" data-val="{{ $u->days_left }}">
+                        <span class="font-mono text-xs font-bold {{ $u->days_left <= 1 ? 'text-red-500' : 'text-amber-500 dark:text-amber-400' }}">{{ $u->days_left }}d</span>
                     </td>
-                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'expiring', 'data' => ['nama' => $u->name, 'email' => $u->email, 'plan' => $u->plan_name, 'kadaluarsa' => \Carbon\Carbon::parse($u->expired_at)->format('d M Y'), 'sisa_hari' => $u->days_left]])</td>
                 </tr>
                 @empty
@@ -218,14 +218,14 @@
 
     {{-- Segment B: Churned --}}
     <div id="seg-churned" class="seg-panel hidden overflow-x-auto">
-        <table class="w-full min-w-max text-sm">
+        <table id="tbl-churned" class="w-full min-w-max text-sm">
             <thead><tr class="border-b border-slate-100 dark:border-white/[0.05]">
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Plan Terakhir</th>
-                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Expired</th>
+                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-churned',2)" data-col="2">Expired <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
                 <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Trx</th>
                 <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">LTV</th>
-                <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Last Login</th>
+                <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-churned',5)" data-col="5">Last Login <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">WA</th>
             </tr></thead>
             <tbody>
@@ -237,10 +237,10 @@
                         @if($u->phone_number)<div class="text-[11px] text-slate-400 font-mono">{{ $u->phone_number }}</div>@endif
                     </td>
                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $u->last_plan }}</td>
-                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400" data-val="{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('d/m/Y') : '—' }}</td>
                     <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{{ $u->total_trx }}×</td>
                     <td class="px-5 py-3 text-right font-mono text-xs text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Rp {{ number_format($u->lifetime_value, 0, ',', '.') }}</td>
-                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'churned', 'data' => ['nama' => $u->name, 'email' => $u->email, 'plan_terakhir' => $u->last_plan, 'expired' => $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('d M Y') : '-', 'total_trx' => $u->total_trx, 'ltv' => 'Rp ' . number_format($u->lifetime_value, 0, ',', '.')]])</td>
                 </tr>
                 @empty
@@ -273,7 +273,7 @@
                     <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{{ number_format($u->total_chapters_read) }}</td>
                     <td class="px-5 py-3 text-right font-mono text-xs text-slate-500">{{ $u->unique_contents }}</td>
                     <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->last_read_at ? \Carbon\Carbon::parse($u->last_read_at)->format('d/m/Y') : '—' }}</td>
-                    <td class="px-5 py-3 text-right font-mono text-xs {{ ($u->days_since_read ?? 999) <= 7 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400' }}">{{ $u->days_since_read ?? '—' }}h</td>
+                    <td class="px-5 py-3 text-right font-mono text-xs {{ ($u->days_since_read ?? 999) <= 7 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400' }}">{{ $u->days_since_read ?? '—' }}d</td>
                     <td class="px-5 py-3 font-mono text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($u->created_at)->format('d/m/Y') }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'never', 'data' => ['nama' => $u->name, 'email' => $u->email, 'total_chapter' => number_format($u->total_chapters_read), 'judul_unik' => $u->unique_contents, 'terakhir_baca' => $u->last_read_at ? \Carbon\Carbon::parse($u->last_read_at)->format('d M Y') : '-']])</td>
                 </tr>
@@ -286,12 +286,12 @@
 
     {{-- Segment D: Dormant --}}
     <div id="seg-dormant" class="seg-panel hidden overflow-x-auto">
-        <table class="w-full min-w-max text-sm">
+        <table id="tbl-dormant" class="w-full min-w-max text-sm">
             <thead><tr class="border-b border-slate-100 dark:border-white/[0.05]">
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User</th>
                 <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tipe</th>
-                <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Hari Tidak Aktif</th>
-                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Last Login</th>
+                <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-dormant',2)" data-col="2">Days Inactive <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
+                <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider sortable-th cursor-pointer select-none" onclick="sortTable('tbl-dormant',3)" data-col="3">Last Login <svg class="inline w-3 h-3 ml-0.5 -mt-0.5" fill="currentColor" viewBox="0 0 16 16"><path d="M7.247 4.86l-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z" style="opacity:0.3"/><path d="M7.247 11.14l-4.796-5.481c-.566-.647-.106-1.659.753-1.659h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" style="opacity:0.3"/></svg></th>
                 <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Reminder Terakhir</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">WA</th>
             </tr></thead>
@@ -310,8 +310,8 @@
                             <span class="badge badge-expired">Never sub</span>
                         @endif
                     </td>
-                    <td class="px-5 py-3 text-right font-mono text-xs font-bold {{ ($u->days_inactive ?? 0) >= 60 ? 'text-red-500' : 'text-slate-500 dark:text-slate-400' }}">{{ $u->days_inactive }}h</td>
-                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 text-right font-mono text-xs font-bold {{ ($u->days_inactive ?? 0) >= 60 ? 'text-red-500' : 'text-slate-500 dark:text-slate-400' }}" data-val="{{ $u->days_inactive ?? 0 }}">{{ $u->days_inactive }}d</td>
+                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
                     <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->inactive_reminder_sent_at ? \Carbon\Carbon::parse($u->inactive_reminder_sent_at)->format('d/m/Y') : '—' }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'dormant', 'data' => ['nama' => $u->name, 'email' => $u->email, 'tipe' => $u->dormant_type === 'lapsed_member' ? 'Member Lapsed' : 'Belum Berlangganan', 'hari_tidak_aktif' => $u->days_inactive, 'terakhir_login' => $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d M Y') : '-']])</td>
                 </tr>
@@ -490,5 +490,52 @@ function openSegmentWA(segment, data) {
 
 // Load templates on page load (in background)
 document.addEventListener('DOMContentLoaded', loadSegTemplates);
+
+// ── Table Sorting ────────────────────────────────────────────────────────────
+const sortState = {};
+
+function sortTable(tableId, colIndex) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector('tbody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+
+    if (!rows.length || rows[0].cells.length <= 1) return; // empty state row
+
+    const key    = tableId + ':' + colIndex;
+    const asc    = sortState[key] !== true;
+    sortState[key] = asc;
+
+    rows.sort((a, b) => {
+        const aCell = a.cells[colIndex];
+        const bCell = b.cells[colIndex];
+        const aVal  = aCell?.dataset.val ?? aCell?.textContent.trim() ?? '';
+        const bVal  = bCell?.dataset.val ?? bCell?.textContent.trim() ?? '';
+        const aNum  = parseFloat(aVal);
+        const bNum  = parseFloat(bVal);
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return asc ? aNum - bNum : bNum - aNum;
+        }
+        return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+
+    // Update header icons
+    table.querySelectorAll('.sortable-th').forEach(th => {
+        th.querySelectorAll('svg').forEach(svg => {
+            svg.querySelectorAll('path').forEach((p, i) => {
+                p.style.opacity = '0.3';
+            });
+        });
+    });
+    const activeTh = table.querySelector(`[data-col="${colIndex}"]`);
+    if (activeTh) {
+        const paths = activeTh.querySelectorAll('svg path');
+        if (paths.length >= 2) {
+            paths[0].style.opacity = asc  ? '1' : '0.3'; // up
+            paths[1].style.opacity = !asc ? '1' : '0.3'; // down
+        }
+    }
+}
 </script>
 @endpush
