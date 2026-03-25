@@ -46,6 +46,11 @@
         $kpi   = $tab['kpi'];
         $users = $tab['users'];
         $books = $tab['bookDetails'];
+
+        // Compute chapter & book totals from the user list so they stay in sync
+        $computedChapters = array_sum(array_column(array_map(fn($u) => (array)$u, $users), 'chapters_read'));
+        $allContentIds    = array_merge(...array_map(fn($u) => array_column($books[$u->id] ?? [], 'content_id'), $users));
+        $computedBooks    = count(array_unique($allContentIds));
     @endphp
     <div id="tab-panel-{{ $h }}" class="space-y-5 {{ $h !== 1 ? 'hidden' : '' }}">
 
@@ -53,17 +58,17 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">User Aktif</p>
-                <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ number_format($kpi->active_users) }}</p>
+                <p id="kpi-users-{{ $h }}" class="text-2xl font-bold text-slate-800 dark:text-white">{{ number_format(count($users)) }}</p>
                 <p class="text-xs text-slate-400 mt-0.5">sedang/baru baca</p>
             </div>
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">Total Chapter Dibaca</p>
-                <p class="text-2xl font-bold text-blue-500">{{ number_format($kpi->total_chapters) }}</p>
+                <p id="kpi-chapters-{{ $h }}" class="text-2xl font-bold text-blue-500">{{ number_format($computedChapters) }}</p>
                 <p class="text-xs text-slate-400 mt-0.5">dalam {{ $h }} jam terakhir</p>
             </div>
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">Konten Diakses</p>
-                <p class="text-2xl font-bold text-violet-500">{{ number_format($kpi->total_books) }}</p>
+                <p id="kpi-books-{{ $h }}" class="text-2xl font-bold text-violet-500">{{ number_format($computedBooks) }}</p>
                 <p class="text-xs text-slate-400 mt-0.5">judul unik</p>
             </div>
             <div class="glass-card p-5">
@@ -151,6 +156,8 @@
                         {{-- Main Row --}}
                         <tr class="user-row-{{ $h }} hover:bg-slate-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors group"
                             data-book-ids="{{ implode(',', array_column($userBooks, 'content_id')) }}"
+                            data-chapters="{{ $user->chapters_read }}"
+                            data-books="{{ $user->books_count }}"
                             data-expand-id="books-{{ $h }}-{{ $user->id }}"
                             onclick="toggleBooks('{{ $h }}-{{ $user->id }}')">
                             <td class="px-5 py-3.5">
@@ -296,8 +303,8 @@
 
     // Filter table by book
     function filterByBook(h, contentId) {
-        const rows    = document.querySelectorAll('.user-row-' + h);
-        let   visible = 0;
+        const rows = document.querySelectorAll('.user-row-' + h);
+        let visible = 0, totalChapters = 0, bookSet = new Set();
 
         rows.forEach(tr => {
             const ids      = (tr.dataset.bookIds || '').split(',').filter(Boolean);
@@ -306,18 +313,29 @@
             const match    = !contentId || ids.includes(String(contentId));
 
             tr.classList.toggle('hidden', !match);
-            // Collapse expand row when hidden
             if (!match && expand) {
                 expand.classList.add('hidden');
                 const chevron = document.getElementById('chevron-' + expandId.replace('books-', ''));
                 if (chevron) chevron.style.transform = '';
             }
-            if (match) visible++;
+            if (match) {
+                visible++;
+                totalChapters += parseInt(tr.dataset.chapters || 0, 10);
+                ids.forEach(id => { if (id) bookSet.add(id); });
+            }
         });
 
         // Update count badge
         const badge = document.getElementById('user-count-' + h);
         if (badge) badge.textContent = visible + ' user';
+
+        // Sync KPI cards with visible rows
+        const kpiUsers    = document.getElementById('kpi-users-' + h);
+        const kpiChapters = document.getElementById('kpi-chapters-' + h);
+        const kpiBooks    = document.getElementById('kpi-books-' + h);
+        if (kpiUsers)    kpiUsers.textContent    = visible.toLocaleString();
+        if (kpiChapters) kpiChapters.textContent = totalChapters.toLocaleString();
+        if (kpiBooks)    kpiBooks.textContent     = (contentId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
     }
 
     // Auto-refresh every 90 seconds
