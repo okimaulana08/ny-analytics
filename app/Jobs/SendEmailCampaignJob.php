@@ -74,18 +74,23 @@ class SendEmailCampaignJob implements ShouldQueue
 
             $logStatus = $result['success'] ? 'sent' : 'failed';
             $errorMessage = $result['success'] ? null : $result['error'];
+            $messageIds = $result['message_ids'];
 
             $now = now();
-            $logs = array_map(fn ($r) => [
-                'email_campaign_id' => $campaign->id,
-                'recipient_email' => $r['email'],
-                'recipient_name' => $r['name'] ?? null,
-                'status' => $logStatus,
-                'error_message' => $errorMessage,
-                'sent_at' => $result['success'] ? $now : null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ], $chunk);
+            $logs = [];
+            foreach ($chunk as $i => $r) {
+                $logs[] = [
+                    'email_campaign_id' => $campaign->id,
+                    'recipient_email' => $r['email'],
+                    'recipient_name' => $r['name'] ?? null,
+                    'status' => $logStatus,
+                    'brevo_message_id' => $messageIds[$i] ?? null,
+                    'error_message' => $errorMessage,
+                    'sent_at' => $result['success'] ? $now : null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
 
             EmailCampaignLog::insert($logs);
 

@@ -38,7 +38,8 @@ class BrevoWebhookController extends Controller
 
     private function processEvent(array $event): void
     {
-        $messageId = $event['MessageId'] ?? $event['messageId'] ?? null;
+        // Brevo sends 'message-id' (hyphen), but some docs show camelCase variants
+        $messageId = $event['message-id'] ?? $event['MessageId'] ?? $event['messageId'] ?? null;
         $eventType = $event['event'] ?? '';
 
         if (! $messageId) {
@@ -52,6 +53,7 @@ class BrevoWebhookController extends Controller
         }
 
         $statusMap = [
+            'request' => 'sent',        // Brevo fires 'request' when email is queued/sent
             'delivered' => 'delivered',
             'opened' => 'opened',
             'click' => 'clicked',
@@ -67,6 +69,10 @@ class BrevoWebhookController extends Controller
         }
 
         $updates = ['status' => $newStatus];
+
+        if ($eventType === 'request' && ! $log->sent_at) {
+            $updates['sent_at'] = now();
+        }
 
         if ($eventType === 'opened' && ! $log->opened_at) {
             $updates['opened_at'] = now();

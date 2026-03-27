@@ -993,8 +993,10 @@ class ReportController extends Controller
 
         $revenueMap = collect($rows)->keyBy('date');
 
-        // Marketing costs from SQLite
-        $costs = DailyRevenueCost::whereYear('date', $year)
+        // Marketing costs from SQLite — use raw query builder so date keys stay as 'Y-m-d' strings
+        $costs = DB::connection('sqlite')
+            ->table('daily_revenue_costs')
+            ->whereYear('date', $year)
             ->whereMonth('date', $month)
             ->pluck('marketing_cost', 'date')
             ->map(fn ($v) => (int) $v);
