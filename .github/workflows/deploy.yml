@@ -147,7 +147,6 @@ jobs:
             Branch: `${{ github.ref_name }}`
             Commit: [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
             Oleh: ${{ github.actor }}
-            Pesan: ${{ github.event.head_commit.message }}
             [Lihat workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Notify failure
