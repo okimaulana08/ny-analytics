@@ -105,6 +105,27 @@ class EmailGroupSeeder extends Seeder
                 'criteria' => ['filter' => 'user_loyal', 'params' => ['min_trx' => 5]],
                 'members' => [],
             ],
+            [
+                'name' => 'User Dormant Seminggu Terakhir',
+                'description' => 'User yang pernah bayar tapi tidak ada transaksi dalam 7 hari terakhir — early re-engagement',
+                'type' => 'dynamic',
+                'criteria' => ['filter' => 'user_dorman', 'params' => ['days' => 7]],
+                'members' => [],
+            ],
+            [
+                'name' => 'User Dormant 1 Bulan Terakhir',
+                'description' => 'User yang pernah bayar tapi tidak ada transaksi dalam 30 hari terakhir — re-engagement mendesak',
+                'type' => 'dynamic',
+                'criteria' => ['filter' => 'user_dorman', 'params' => ['days' => 30]],
+                'members' => [],
+            ],
+            [
+                'name' => 'Akan Expired 1 Hari Lagi',
+                'description' => 'User dengan subscription yang habis dalam 24 jam — urgensi sangat tinggi',
+                'type' => 'dynamic',
+                'criteria' => ['filter' => 'akan_expired', 'params' => ['days' => 1]],
+                'members' => [],
+            ],
         ];
 
         foreach ($groups as $groupData) {
