@@ -17,7 +17,7 @@ class ReportController extends Controller
         return DB::connection('novel');
     }
 
-    public function subscription(): View
+    public function subscription(Request $request): View
     {
         $db = $this->db();
 
@@ -74,6 +74,22 @@ class ReportController extends Controller
             GROUP BY status
         ');
 
+        $renewerPage = max(1, (int) $request->query('renewer_page', 1));
+        $renewerPerPage = 10;
+        $renewerOffset = ($renewerPage - 1) * $renewerPerPage;
+
+        $renewerTotal = (int) ($db->selectOne("
+            SELECT COUNT(*) AS cnt FROM (
+                SELECT t.user_id
+                FROM transactions t
+                WHERE t.status = 'paid'
+                GROUP BY t.user_id
+                HAVING COUNT(t.id) > 1
+            ) r
+        ")->cnt ?? 0);
+
+        $renewerPages = (int) ceil($renewerTotal / $renewerPerPage) ?: 1;
+
         $topRenewers = $db->select("
             SELECT u.name, u.email, MAX(p.phone_number) AS phone_number,
                    COUNT(t.id) AS trx_count,
@@ -87,13 +103,13 @@ class ReportController extends Controller
             GROUP BY t.user_id, u.name, u.email
             HAVING trx_count > 1
             ORDER BY trx_count DESC, total_spent DESC
-            LIMIT 20
+            LIMIT {$renewerPerPage} OFFSET {$renewerOffset}
         ");
 
         return view('admin.reports.subscription', compact(
             'kpi', 'renewalCount', 'dailyTrend',
             'revByPlan', 'gatewayStats', 'statusBreakdown',
-            'topRenewers'
+            'topRenewers', 'renewerPage', 'renewerPages', 'renewerTotal'
         ));
     }
 
@@ -346,7 +362,7 @@ class ReportController extends Controller
 
         $transactions = $db->select("
             SELECT
-                t.id, t.created_at, t.paid_at, t.total_amount,
+                t.id, t.created_at, t.paid_at, t.expired_at, t.payment_url, t.total_amount,
                 t.payment_gateway, t.status,
                 u.name AS user_name, u.email AS user_email,
                 p.phone_number AS user_phone,

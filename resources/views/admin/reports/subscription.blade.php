@@ -145,14 +145,17 @@
         <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
             <div>
                 <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Top Renewers</h2>
-                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">User dengan transaksi terbanyak</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">User dengan transaksi terbanyak — {{ number_format($renewerTotal) }} user</p>
             </div>
-            <span class="text-[11px] font-medium text-violet-500 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 rounded-full">Top 20</span>
+            <span class="text-[11px] font-medium text-violet-500 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 rounded-full">
+                Hal {{ $renewerPage }}/{{ $renewerPages }}
+            </span>
         </div>
         <div class="overflow-x-auto">
         <table class="w-full min-w-max text-sm">
             <thead>
                 <tr class="border-b border-slate-100 dark:border-white/[0.05]">
+                    <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">#</th>
                     <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User</th>
                     <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Trx</th>
                     <th class="px-5 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total</th>
@@ -160,8 +163,9 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($topRenewers as $r)
+                @forelse($topRenewers as $i => $r)
                 <tr class="border-b border-slate-50 dark:border-white/[0.03] hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-400">{{ ($renewerPage - 1) * 10 + $i + 1 }}</td>
                     <td class="px-5 py-3">
                         <div class="text-xs font-medium text-slate-700 dark:text-slate-200">{{ $r->name }}</div>
                         <div class="text-[11px] text-slate-400 font-mono">{{ $r->email }}</div>
@@ -172,11 +176,40 @@
                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $r->latest_plan }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada data</td></tr>
+                <tr><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada data</td></tr>
                 @endforelse
             </tbody>
         </table>
-        </div>{{-- /overflow-x-auto --}}
+        </div>
+        {{-- Pagination --}}
+        @if($renewerPages > 1)
+        <div class="px-5 py-3 border-t border-slate-100 dark:border-white/[0.05] flex items-center justify-between">
+            <span class="text-xs text-slate-400">
+                {{ ($renewerPage - 1) * 10 + 1 }}–{{ min($renewerPage * 10, $renewerTotal) }} dari {{ number_format($renewerTotal) }}
+            </span>
+            <div class="flex items-center gap-1">
+                @if($renewerPage > 1)
+                <a href="{{ request()->fullUrlWithQuery(['renewer_page' => $renewerPage - 1]) }}"
+                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+                @endif
+                @foreach(range(max(1, $renewerPage - 2), min($renewerPages, $renewerPage + 2)) as $p)
+                <a href="{{ request()->fullUrlWithQuery(['renewer_page' => $p]) }}"
+                    class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono transition-colors
+                        {{ $p === $renewerPage ? 'bg-violet-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06]' }}">
+                    {{ $p }}
+                </a>
+                @endforeach
+                @if($renewerPage < $renewerPages)
+                <a href="{{ request()->fullUrlWithQuery(['renewer_page' => $renewerPage + 1]) }}"
+                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                @endif
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 
