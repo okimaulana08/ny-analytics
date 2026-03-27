@@ -1112,14 +1112,25 @@ class ReportController extends Controller
         $startDate = sprintf('%04d-%02d-01', $year, $month);
         $endDate = sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
 
-        $rows = $this->db()->select('
-            SELECT `date`, new_user, view AS akses, `read`
-            FROM recap_daily
-            WHERE `date` >= ? AND `date` <= ?
-            ORDER BY `date` ASC
+        // Unique DAU from user_read (distinct user_id per day — excludes anonymous sessions)
+        $dauRows = $this->db()->select('
+            SELECT DATE(created_at) AS date, COUNT(DISTINCT user_id) AS akses
+            FROM user_read
+            WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+              AND user_id IS NOT NULL
+            GROUP BY DATE(created_at)
         ', [$startDate, $endDate]);
 
-        $dataMap = collect($rows)->keyBy('date');
+        $dauMap = collect($dauRows)->keyBy('date');
+
+        // New users + read count from recap_daily (pre-aggregated)
+        $recapRows = $this->db()->select('
+            SELECT `date`, new_user, `read`
+            FROM recap_daily
+            WHERE `date` >= ? AND `date` <= ?
+        ', [$startDate, $endDate]);
+
+        $recapMap = collect($recapRows)->keyBy('date');
 
         $days = [];
         $prevAkses = null;
@@ -1127,11 +1138,10 @@ class ReportController extends Controller
 
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $dateStr = sprintf('%04d-%02d-%02d', $year, $month, $d);
-            $row = $dataMap[$dateStr] ?? null;
 
-            $akses = $row ? (int) $row->akses : 0;
-            $newUser = $row ? (int) $row->new_user : 0;
-            $read = $row ? (int) $row->read : 0;
+            $akses = (int) ($dauMap[$dateStr]->akses ?? 0);
+            $newUser = (int) ($recapMap[$dateStr]->new_user ?? 0);
+            $read = (int) ($recapMap[$dateStr]->read ?? 0);
 
             $aksesGrowth = null;
             if ($prevAkses !== null && $prevAkses > 0) {
