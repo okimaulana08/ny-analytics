@@ -3,20 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmailCampaignLog;
-use App\Services\BrevoService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 class BrevoWebhookController extends Controller
 {
-    public function handle(Request $request, BrevoService $brevo): Response
+    public function handle(Request $request): Response
     {
-        $payload = $request->getContent();
-        $signature = $request->header('X-Brevo-Signature', '');
-
-        if (! $brevo->verifyWebhookSignature($payload, $signature)) {
-            Log::warning('BrevoWebhook: invalid signature');
+        // Brevo does NOT send a signature header — auth via query string token
+        $secret = config('brevo.webhook_secret');
+        if (! empty($secret) && $request->query('token') !== $secret) {
+            Log::warning('BrevoWebhook: invalid token');
 
             return response('Unauthorized', 401);
         }
@@ -38,7 +36,7 @@ class BrevoWebhookController extends Controller
 
     private function processEvent(array $event): void
     {
-        // Brevo sends 'message-id' (hyphen), but some docs show camelCase variants
+        // Brevo sends 'message-id' with hyphen per their docs
         $messageId = $event['message-id'] ?? $event['MessageId'] ?? $event['messageId'] ?? null;
         $eventType = $event['event'] ?? '';
 
@@ -52,13 +50,22 @@ class BrevoWebhookController extends Controller
             return;
         }
 
+        // Full event map per Brevo transactional webhook docs
         $statusMap = [
-            'request' => 'sent',        // Brevo fires 'request' when email is queued/sent
+            'request' => 'sent',
             'delivered' => 'delivered',
             'opened' => 'opened',
+            'first_open' => 'opened',
+            'proxy_open' => 'opened',
+            'unique_proxy_open' => 'opened',
             'click' => 'clicked',
             'hard_bounce' => 'bounced',
             'soft_bounce' => 'bounced',
+            'deferred' => 'sent',
+            'spam' => 'failed',
+            'invalid_email' => 'failed',
+            'blocked' => 'failed',
+            'error' => 'failed',
             'unsubscribed' => 'unsubscribed',
         ];
 
@@ -74,7 +81,7 @@ class BrevoWebhookController extends Controller
             $updates['sent_at'] = now();
         }
 
-        if ($eventType === 'opened' && ! $log->opened_at) {
+        if (in_array($eventType, ['opened', 'first_open', 'proxy_open', 'unique_proxy_open']) && ! $log->opened_at) {
             $updates['opened_at'] = now();
         }
 
@@ -83,9 +90,20 @@ class BrevoWebhookController extends Controller
         }
 
         if (in_array($eventType, ['hard_bounce', 'soft_bounce'])) {
-            $reason = $event['reason'] ?? $event['error'] ?? $event['description'] ?? null;
+            $reason = $event['reason'] ?? null;
             $bounceType = $eventType === 'hard_bounce' ? 'Hard bounce' : 'Soft bounce';
             $updates['error_message'] = $reason ? "{$bounceType}: {$reason}" : $bounceType;
+        }
+
+        if (in_array($eventType, ['spam', 'invalid_email', 'blocked', 'error'])) {
+            $reason = $event['reason'] ?? $event['description'] ?? null;
+            $label = match ($eventType) {
+                'spam' => 'Spam complaint',
+                'invalid_email' => 'Invalid email',
+                'blocked' => 'Blocked',
+                'error' => 'Error',
+            };
+            $updates['error_message'] = $reason ? "{$label}: {$reason}" : $label;
         }
 
         $log->update($updates);
