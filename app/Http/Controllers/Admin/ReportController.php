@@ -1101,6 +1101,88 @@ class ReportController extends Controller
         ));
     }
 
+    public function userDaily(Request $request): View
+    {
+        $month = (int) $request->get('month', now()->month);
+        $year = (int) $request->get('year', now()->year);
+        $month = max(1, min(12, $month));
+        $year = max(2020, min((int) now()->year + 1, $year));
+
+        $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
+        $startDate = sprintf('%04d-%02d-01', $year, $month);
+        $endDate = sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
+
+        $rows = $this->db()->select('
+            SELECT `date`, new_user, view AS akses, `read`
+            FROM recap_daily
+            WHERE `date` >= ? AND `date` <= ?
+            ORDER BY `date` ASC
+        ', [$startDate, $endDate]);
+
+        $dataMap = collect($rows)->keyBy('date');
+
+        $days = [];
+        $prevAkses = null;
+        $prevNewUser = null;
+
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dateStr = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            $row = $dataMap[$dateStr] ?? null;
+
+            $akses = $row ? (int) $row->akses : 0;
+            $newUser = $row ? (int) $row->new_user : 0;
+            $read = $row ? (int) $row->read : 0;
+
+            $aksesGrowth = null;
+            if ($prevAkses !== null && $prevAkses > 0) {
+                $aksesGrowth = round(($akses - $prevAkses) / $prevAkses * 100, 1);
+            } elseif ($prevAkses === 0 && $akses > 0) {
+                $aksesGrowth = null;
+            }
+
+            $newUserGrowth = null;
+            if ($prevNewUser !== null && $prevNewUser > 0) {
+                $newUserGrowth = round(($newUser - $prevNewUser) / $prevNewUser * 100, 1);
+            } elseif ($prevNewUser === 0 && $newUser > 0) {
+                $newUserGrowth = null;
+            }
+
+            $days[] = [
+                'date' => $dateStr,
+                'day' => $d,
+                'akses' => $akses,
+                'new_user' => $newUser,
+                'read' => $read,
+                'akses_growth' => $aksesGrowth,
+                'new_user_growth' => $newUserGrowth,
+                'has_data' => $akses > 0 || $newUser > 0,
+            ];
+
+            $prevAkses = $akses;
+            $prevNewUser = $newUser;
+        }
+
+        $totalAkses = collect($days)->sum('akses');
+        $totalNewUser = collect($days)->sum('new_user');
+        $totalRead = collect($days)->sum('read');
+
+        $activeDays = collect($days)->where('has_data', true)->count();
+        $avgAkses = $activeDays > 0 ? round($totalAkses / $activeDays) : 0;
+        $avgNewUser = $activeDays > 0 ? round($totalNewUser / $activeDays, 1) : 0;
+
+        $peakAksesDay = collect($days)->sortByDesc('akses')->first();
+        $peakNewUserDay = collect($days)->sortByDesc('new_user')->first();
+
+        $years = range(2023, (int) now()->year);
+
+        return view('admin.reports.user_daily', compact(
+            'days', 'month', 'year', 'years',
+            'totalAkses', 'totalNewUser', 'totalRead',
+            'activeDays', 'avgAkses', 'avgNewUser',
+            'peakAksesDay', 'peakNewUserDay'
+        ));
+    }
+
     public function saveMarketingCost(Request $request): JsonResponse
     {
         $request->validate([

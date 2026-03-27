@@ -44,6 +44,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::get('/reports/acquisition', [ReportController::class, 'acquisition'])->name('reports.acquisition');
     Route::get('/reports/revenue-daily', [ReportController::class, 'revenueDaily'])->name('reports.revenue-daily');
     Route::post('/reports/revenue-daily/cost', [ReportController::class, 'saveMarketingCost'])->name('reports.revenue-daily.cost');
+    Route::get('/reports/user-daily', [ReportController::class, 'userDaily'])->name('reports.user-daily');
     Route::get('/reports/user-recommend/{userId}', [ReportController::class, 'userRecommend'])->name('reports.user-recommend');
 
     Route::prefix('assistant')->name('assistant.')->group(function () {
