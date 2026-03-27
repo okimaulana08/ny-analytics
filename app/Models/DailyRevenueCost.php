@@ -13,7 +13,6 @@ class DailyRevenueCost extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
             'marketing_cost' => 'integer',
         ];
     }
