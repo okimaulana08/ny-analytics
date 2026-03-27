@@ -76,6 +76,12 @@ class BrevoWebhookController extends Controller
             $updates['clicked_at'] = now();
         }
 
+        if (in_array($eventType, ['hard_bounce', 'soft_bounce'])) {
+            $reason = $event['reason'] ?? $event['error'] ?? $event['description'] ?? null;
+            $bounceType = $eventType === 'hard_bounce' ? 'Hard bounce' : 'Soft bounce';
+            $updates['error_message'] = $reason ? "{$bounceType}: {$reason}" : $bounceType;
+        }
+
         $log->update($updates);
     }
 }

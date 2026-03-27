@@ -71,6 +71,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
         // Campaign History
         Route::get('/campaigns', [CampaignHistoryController::class, 'index'])->name('campaigns.index');
         Route::get('/campaigns/{campaign}', [CampaignHistoryController::class, 'show'])->name('campaigns.show');
+        Route::post('/campaigns/{campaign}/resend', [CampaignHistoryController::class, 'resend'])->name('campaigns.resend');
         Route::delete('/campaigns/{campaign}', [CampaignHistoryController::class, 'destroy'])->name('campaigns.destroy');
     });
 });

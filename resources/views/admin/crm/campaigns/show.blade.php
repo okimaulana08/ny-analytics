@@ -21,7 +21,7 @@
             <p class="text-xs text-slate-400 mt-1">Subject: {{ $campaign->subject }}</p>
             <p class="text-xs text-slate-400">Grup: {{ $campaign->group->name ?? '—' }} &nbsp;|&nbsp; Template: {{ $campaign->template->name ?? '—' }}</p>
         </div>
-        <div class="text-right">
+        <div class="text-right flex flex-col items-end gap-2">
             @php
                 $statusClass = match($campaign->status) {
                     'sent' => 'badge-paid',
@@ -33,10 +33,24 @@
             @endphp
             <span class="badge {{ $statusClass }}">{{ ucfirst($campaign->status) }}</span>
             @if($campaign->scheduled_at)
-                <p class="text-xs text-amber-500 mt-1 font-mono">{{ $campaign->scheduled_at->format('d/m/Y H:i') }}</p>
+                <p class="text-xs text-amber-500 font-mono">{{ $campaign->scheduled_at->format('d/m/Y H:i') }}</p>
             @endif
             @if($campaign->sent_at)
-                <p class="text-xs text-slate-400 mt-1 font-mono">Dikirim: {{ $campaign->sent_at->format('d/m/Y H:i') }}</p>
+                <p class="text-xs text-slate-400 font-mono">Dikirim: {{ $campaign->sent_at->format('d/m/Y H:i') }}</p>
+            @endif
+            @if(in_array($campaign->status, ['failed', 'sent']))
+            <form action="{{ route('admin.crm.campaigns.resend', $campaign) }}" method="POST"
+                onsubmit="return confirm('Kirim ulang campaign ini ke semua penerima?')">
+                @csrf
+                <button type="submit"
+                    class="h-8 px-3 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 transition-colors
+                        {{ $campaign->status === 'failed' ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/30' : 'bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/[0.10] border border-slate-200 dark:border-white/[0.08]' }}">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Kirim Ulang
+                </button>
+            </form>
             @endif
         </div>
     </div>
@@ -101,8 +115,14 @@
                     <td class="px-5 py-2.5 text-xs text-slate-400 font-mono">
                         {{ $log->opened_at ? $log->opened_at->format('d/m H:i') : '—' }}
                     </td>
-                    <td class="px-5 py-2.5 text-xs text-red-500 max-w-xs truncate">
-                        {{ $log->error_message ?: '—' }}
+                    <td class="px-5 py-2.5 text-xs max-w-xs">
+                        @if($log->error_message)
+                            <span class="text-red-500" title="{{ $log->error_message }}">
+                                {{ Str::limit($log->error_message, 60) }}
+                            </span>
+                        @else
+                            <span class="text-slate-400">—</span>
+                        @endif
                     </td>
                 </tr>
                 @empty

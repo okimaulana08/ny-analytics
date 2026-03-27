@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendEmailCampaignJob;
 use App\Models\EmailCampaign;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -34,6 +35,28 @@ class CampaignHistoryController extends Controller
         ];
 
         return view('admin.crm.campaigns.show', compact('campaign', 'logs', 'stats'));
+    }
+
+    public function resend(EmailCampaign $campaign): RedirectResponse
+    {
+        if (! in_array($campaign->status, ['failed', 'sent'])) {
+            return redirect()->route('admin.crm.campaigns.show', $campaign)
+                ->with('error', 'Hanya campaign berstatus failed atau sent yang bisa di-resend.');
+        }
+
+        $campaign->logs()->delete();
+
+        $campaign->update([
+            'status' => 'queued',
+            'sent_count' => 0,
+            'failed_count' => 0,
+            'sent_at' => null,
+        ]);
+
+        SendEmailCampaignJob::dispatch($campaign->id);
+
+        return redirect()->route('admin.crm.campaigns.show', $campaign)
+            ->with('success', 'Campaign dijadwalkan ulang untuk pengiriman.');
     }
 
     public function destroy(EmailCampaign $campaign): RedirectResponse

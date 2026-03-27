@@ -53,7 +53,7 @@ class SendEmailCampaignJob implements ShouldQueue
         $campaign->update(['recipient_count' => count($recipients)]);
 
         $htmlBody = $brevo->renderTemplate($campaign->template->html_body, [
-            'app_url' => config('app.url'),
+            'app_url' => config('brevo.novelya_url'),
         ]);
 
         $scheduledAt = $campaign->scheduled_at

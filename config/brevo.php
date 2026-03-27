@@ -5,4 +5,5 @@ return [
     'sender_email' => env('BREVO_SENDER_EMAIL', 'no-reply@novelya.id'),
     'sender_name' => env('BREVO_SENDER_NAME', 'Novelya'),
     'webhook_secret' => env('BREVO_WEBHOOK_SECRET'),
+    'novelya_url' => env('NOVELYA_URL', 'https://novelya.id'),
 ];
