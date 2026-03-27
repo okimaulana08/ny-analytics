@@ -77,7 +77,6 @@
 </div>
 
 {{-- UTM Attribution --}}
-@if(count($utmBreakdown) > 0)
 <div class="flat-card mb-5">
     <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06]">
         <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">UTM Attribution</h2>
@@ -95,7 +94,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($utmBreakdown as $utm)
+            @forelse($utmBreakdown as $utm)
             <tr class="border-b border-slate-50 dark:border-white/[0.03] hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
                 <td class="px-5 py-3">
                     <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -113,12 +112,22 @@
                 <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{{ number_format($utm->users) }}</td>
                 <td class="px-5 py-3 text-right font-mono text-xs text-slate-400">{{ number_format($utm->events) }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="5" class="px-5 py-10 text-center text-sm text-slate-400">Belum ada data UTM.</td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
     </div>
+    @include('admin.partials.pagination', [
+        'page'       => $utmPage,
+        'totalPages' => $utmTotalPages,
+        'total'      => $utmTotal,
+        'perPage'    => $perPage,
+        'param'      => 'utm_page',
+    ])
 </div>
-@endif
 
 {{-- Share Activity + Short Links --}}
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-5">
@@ -135,7 +144,7 @@
             @foreach($mostShared as $i => $ms)
             @php $pct = round($ms->shares / $maxShares * 100); @endphp
             <div class="flex items-center gap-3">
-                <span class="font-mono text-[11px] font-bold text-slate-400 w-4 flex-shrink-0">{{ $i+1 }}</span>
+                <span class="font-mono text-[11px] font-bold text-slate-400 w-5 flex-shrink-0 text-right">{{ $sharedOffset + $i + 1 }}</span>
                 <div class="flex-1 min-w-0">
                     <p class="text-[12px] font-medium text-slate-700 dark:text-slate-200 truncate mb-1">{{ $ms->title }}</p>
                     <div class="h-1.5 bg-slate-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
@@ -153,6 +162,13 @@
         @else
         <div class="px-5 py-10 text-center text-sm text-slate-400">Belum ada aktivitas share.</div>
         @endif
+        @include('admin.partials.pagination', [
+            'page'       => $sharedPage,
+            'totalPages' => $sharedTotalPages,
+            'total'      => $sharedTotal,
+            'perPage'    => $perPage,
+            'param'      => 'shared_page',
+        ])
     </div>
 
     {{-- Short Links --}}
@@ -161,7 +177,6 @@
             <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Short Links</h2>
             <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Link pendek yang dibuat untuk kampanye</p>
         </div>
-        @if(count($shortLinks) > 0)
         <div class="overflow-x-auto">
         <table class="w-full min-w-max text-sm">
             <thead>
@@ -174,7 +189,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($shortLinks as $sl)
+                @forelse($shortLinks as $sl)
                 <tr class="border-b border-slate-50 dark:border-white/[0.03] hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
                     <td class="px-5 py-3 font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">{{ $sl->code }}</td>
                     <td class="px-5 py-3 font-mono text-[11px] text-slate-500">{{ $sl->utm_medium ?? '—' }}</td>
@@ -184,13 +199,21 @@
                     </td>
                     <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($sl->created_at)->format('d M Y') }}</td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="5" class="px-5 py-10 text-center text-sm text-slate-400">Belum ada short link.</td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
         </div>
-        @else
-        <div class="px-5 py-10 text-center text-sm text-slate-400">Belum ada short link.</div>
-        @endif
+        @include('admin.partials.pagination', [
+            'page'       => $slPage,
+            'totalPages' => $slTotalPages,
+            'total'      => $slTotal,
+            'perPage'    => $perPage,
+            'param'      => 'sl_page',
+        ])
     </div>
 </div>
 

@@ -661,9 +661,10 @@ class ReportController extends Controller
 
     // ── Acquisition & Referral ───────────────────────────────────────────────
 
-    public function acquisition(): View
+    public function acquisition(Request $request): View
     {
         $db = $this->db();
+        $perPage = 10;
 
         // Funnel KPI
         $funnel = $db->selectOne("
@@ -684,7 +685,20 @@ class ReportController extends Controller
             ORDER BY week_start
         ');
 
-        // UTM attribution breakdown (attribution_events replaces user_attributions)
+        // UTM attribution breakdown — paginated
+        $utmTotal = (int) ($db->selectOne('
+            SELECT COUNT(*) AS cnt FROM (
+                SELECT 1 FROM attribution_events
+                GROUP BY COALESCE(NULLIF(utm_source,\'\'),\'organic\'),
+                         COALESCE(NULLIF(utm_medium,\'\'),\'-\'),
+                         COALESCE(NULLIF(utm_campaign,\'\'),\'-\')
+            ) sub
+        ')->cnt ?? 0);
+        $utmPage = max(1, (int) $request->query('utm_page', 1));
+        $utmTotalPages = max(1, (int) ceil($utmTotal / $perPage));
+        $utmPage = min($utmPage, $utmTotalPages);
+        $utmOffset = ($utmPage - 1) * $perPage;
+
         $utmBreakdown = $db->select("
             SELECT
                 COALESCE(NULLIF(ae.utm_source,''), 'organic') AS source,
@@ -695,31 +709,49 @@ class ReportController extends Controller
             FROM attribution_events ae
             GROUP BY source, medium, campaign
             ORDER BY users DESC, events DESC
-            LIMIT 30
+            LIMIT {$perPage} OFFSET {$utmOffset}
         ");
 
-        // Share activity — platform column removed, show top shared content directly
+        // Share activity — platform column removed
         $shareByPlatform = [];
 
-        // Most shared content
-        $mostShared = $db->select('
+        // Most shared content — paginated
+        $sharedTotal = (int) ($db->selectOne('
+            SELECT COUNT(DISTINCT us.content_id) AS cnt
+            FROM user_share us
+            JOIN content c ON c.id = us.content_id
+        ')->cnt ?? 0);
+        $sharedPage = max(1, (int) $request->query('shared_page', 1));
+        $sharedTotalPages = max(1, (int) ceil($sharedTotal / $perPage));
+        $sharedPage = min($sharedPage, $sharedTotalPages);
+        $sharedOffset = ($sharedPage - 1) * $perPage;
+
+        $mostShared = $db->select("
             SELECT c.title, COUNT(*) AS shares,
                    COUNT(DISTINCT us.user_id) AS unique_users
             FROM user_share us
             JOIN content c ON c.id = us.content_id
             GROUP BY us.content_id, c.title
-            ORDER BY shares DESC LIMIT 10
-        ');
+            ORDER BY shares DESC
+            LIMIT {$perPage} OFFSET {$sharedOffset}
+        ");
 
-        // Short links — clicks via attribution_events.affiliate_code
-        $shortLinks = $db->select('
+        // Short links — paginated
+        $slTotal = (int) ($db->selectOne('SELECT COUNT(*) AS cnt FROM short_links')->cnt ?? 0);
+        $slPage = max(1, (int) $request->query('sl_page', 1));
+        $slTotalPages = max(1, (int) ceil($slTotal / $perPage));
+        $slPage = min($slPage, $slTotalPages);
+        $slOffset = ($slPage - 1) * $perPage;
+
+        $shortLinks = $db->select("
             SELECT sl.code, sl.affiliate_code, sl.utm_medium, sl.utm_campaign,
                    sl.created_at,
                    (SELECT COUNT(*) FROM attribution_events ae
                     WHERE ae.affiliate_code = sl.affiliate_code) AS clicks
             FROM short_links sl
             ORDER BY sl.created_at DESC
-        ');
+            LIMIT {$perPage} OFFSET {$slOffset}
+        ");
 
         // UTM vs organic user counts
         $utmUserCount = $db->selectOne('
@@ -738,14 +770,18 @@ class ReportController extends Controller
                 COUNT(DISTINCT CASE WHEN t.status='paid' THEN t.user_id END) AS paying_users,
                 COALESCE(SUM(CASE WHEN t.status='paid' THEN t.total_amount ELSE 0 END), 0) AS revenue
             FROM attribution_events ae
-            LEFT JOIN transactions t ON t.user_id = ae.user_id AND t.status='paid'
+            LEFT JOIN transactions t ON t.user_id = ae.user_id AND t.status = 'paid'
             GROUP BY source
             ORDER BY revenue DESC
         ");
 
         return view('admin.reports.acquisition', compact(
             'funnel', 'regWeekly', 'utmBreakdown', 'shareByPlatform',
-            'mostShared', 'shortLinks', 'utmUserCount', 'conversionBySource'
+            'mostShared', 'shortLinks', 'utmUserCount', 'conversionBySource',
+            'perPage',
+            'utmPage', 'utmTotal', 'utmTotalPages',
+            'sharedPage', 'sharedTotal', 'sharedTotalPages', 'sharedOffset',
+            'slPage', 'slTotal', 'slTotalPages'
         ));
     }
 
