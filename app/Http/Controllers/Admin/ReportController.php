@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DailyRevenueCost;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -963,5 +965,113 @@ class ReportController extends Controller
             'recent_reads' => $recentReads,
             'recommendations' => $recommendations,
         ]);
+    }
+
+    public function revenueDaily(Request $request): View
+    {
+        $month = (int) $request->get('month', now()->month);
+        $year = (int) $request->get('year', now()->year);
+        $month = max(1, min(12, $month));
+        $year = max(2020, min((int) now()->year + 1, $year));
+
+        $daysInMonth = Carbon::createFromDate($year, $month, 1)->daysInMonth;
+        $startDate = sprintf('%04d-%02d-01', $year, $month);
+        $endDate = sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
+
+        // Revenue per day from novel DB
+        $rows = $this->db()->select("
+            SELECT DATE(paid_at) AS date,
+                   COUNT(*) AS trx_count,
+                   COALESCE(SUM(total_amount), 0) AS revenue
+            FROM transactions
+            WHERE status = 'paid'
+              AND paid_at >= ?
+              AND paid_at < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY DATE(paid_at)
+            ORDER BY date ASC
+        ", [$startDate, $endDate]);
+
+        $revenueMap = collect($rows)->keyBy('date');
+
+        // Marketing costs from SQLite
+        $costs = DailyRevenueCost::whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->pluck('marketing_cost', 'date')
+            ->map(fn ($v) => (int) $v);
+
+        // Build full day-by-day array
+        $days = [];
+        $prevRevenue = null;
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dateStr = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            $row = $revenueMap[$dateStr] ?? null;
+            $revenue = $row ? (int) $row->revenue : 0;
+            $trxCount = $row ? (int) $row->trx_count : 0;
+            $marketingCost = $costs[$dateStr] ?? 0;
+            $profit = $revenue - $marketingCost;
+
+            $growth = null;
+            if ($prevRevenue !== null && $prevRevenue > 0) {
+                $growth = round(($revenue - $prevRevenue) / $prevRevenue * 100, 1);
+            } elseif ($prevRevenue === 0 && $revenue > 0) {
+                $growth = null; // infinity, show as new
+            }
+
+            $days[] = [
+                'date' => $dateStr,
+                'day' => $d,
+                'trx_count' => $trxCount,
+                'revenue' => $revenue,
+                'marketing_cost' => $marketingCost,
+                'profit' => $profit,
+                'growth' => $growth,
+                'has_data' => $revenue > 0,
+            ];
+
+            $prevRevenue = $revenue;
+        }
+
+        // Summary KPIs
+        $totalRevenue = collect($days)->sum('revenue');
+        $totalTrx = collect($days)->sum('trx_count');
+        $totalMarketingCost = collect($days)->sum('marketing_cost');
+        $totalProfit = $totalRevenue - $totalMarketingCost;
+        $bestDay = collect($days)->sortByDesc('revenue')->first();
+
+        $activeDays = collect($days)->where('has_data', true)->count();
+        $avgRevenue = $activeDays > 0 ? round($totalRevenue / $activeDays) : 0;
+
+        $years = range(2023, (int) now()->year);
+
+        return view('admin.reports.revenue_daily', compact(
+            'days', 'month', 'year', 'years',
+            'totalRevenue', 'totalTrx', 'totalMarketingCost', 'totalProfit',
+            'bestDay', 'avgRevenue', 'activeDays'
+        ));
+    }
+
+    public function saveMarketingCost(Request $request): JsonResponse
+    {
+        $request->validate([
+            'date' => 'required|date',
+            'cost' => 'required|integer|min:0',
+        ]);
+
+        DailyRevenueCost::updateOrCreate(
+            ['date' => $request->date],
+            ['marketing_cost' => $request->cost]
+        );
+
+        // Return updated profit
+        $rows = $this->db()->select("
+            SELECT COALESCE(SUM(total_amount), 0) AS revenue
+            FROM transactions
+            WHERE status = 'paid' AND DATE(paid_at) = ?
+        ", [$request->date]);
+
+        $revenue = $rows[0]->revenue ?? 0;
+        $profit = $revenue - $request->cost;
+
+        return response()->json(['profit' => $profit, 'revenue' => $revenue]);
     }
 }
