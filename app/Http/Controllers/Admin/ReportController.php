@@ -916,63 +916,60 @@ class ReportController extends Controller
             LIMIT 6
         ', [$userId]);
 
-        $categoryIds = array_column($topCategories, 'id');
+        // Build a single diversified-score query.
+        // Score = category relevance (0-40) + freshness (0-25) + log-popularity (0-25) + quality (0-10) + discovery noise (0-5)
+        // This surfaces new/less-popular content alongside top titles instead of always returning the same highest-subs list.
+        $categoryWeights = [40, 30, 20, 10];
 
-        if (empty($categoryIds)) {
+        if (empty($topCategories)) {
+            // Cold start: no reading history — balance freshness, popularity and discovery
             $recommendations = $db->select('
                 SELECT c.id, c.title, c.slug, c.synopsis, c.tags,
                        c.subscribe_count, c.read_count, c.rating,
-                       mcc.name AS category
+                       mcc.name AS category,
+                       (
+                           GREATEST(0, 25 - FLOOR(DATEDIFF(NOW(), COALESCE(c.published_at, c.created_at)) / 3.6))
+                           + LEAST(25, FLOOR(LOG(GREATEST(c.subscribe_count + 1, 1)) * 5))
+                           + LEAST(10, FLOOR(c.rating * 2))
+                           + (RAND() * 5)
+                       ) AS rec_score
                 FROM content c
                 LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
                 WHERE c.is_published = 1 AND c.is_deleted = 0
-                ORDER BY c.subscribe_count DESC, c.read_count DESC
+                ORDER BY rec_score DESC
                 LIMIT 5
             ');
         } else {
-            $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
+            // Build CASE WHEN for category affinity score
+            $catCaseWhen = '';
+            $catParams = [];
+            foreach ($topCategories as $i => $cat) {
+                $weight = $categoryWeights[$i] ?? 5;
+                $catCaseWhen .= " WHEN c.category_id = ? THEN {$weight}";
+                $catParams[] = $cat->id;
+            }
+
             $recommendations = $db->select("
                 SELECT c.id, c.title, c.slug, c.synopsis, c.tags,
                        c.subscribe_count, c.read_count, c.rating,
-                       mcc.name AS category
+                       mcc.name AS category,
+                       (
+                           CASE {$catCaseWhen} ELSE 0 END
+                           + GREATEST(0, 25 - FLOOR(DATEDIFF(NOW(), COALESCE(c.published_at, c.created_at)) / 3.6))
+                           + LEAST(25, FLOOR(LOG(GREATEST(c.subscribe_count + 1, 1)) * 5))
+                           + LEAST(10, FLOOR(c.rating * 2))
+                           + (RAND() * 5)
+                       ) AS rec_score
                 FROM content c
                 LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
                 WHERE c.is_published = 1 AND c.is_deleted = 0
-                  AND c.category_id IN ({$placeholders})
                   AND c.id NOT IN (
                       SELECT DISTINCT content_id FROM read_history
                       WHERE user_id = ? AND is_deleted = 0
                   )
-                ORDER BY c.subscribe_count DESC, c.read_count DESC, c.rating DESC
+                ORDER BY rec_score DESC
                 LIMIT 5
-            ", array_merge($categoryIds, [$userId]));
-
-            if (count($recommendations) < 3) {
-                $existingIds = array_map(fn ($r) => $r->id, $recommendations);
-                $excludeIds = array_merge($categoryIds, [$userId], $existingIds ?: ['__none__']);
-                $exPlaceholders = implode(',', array_fill(0, count($existingIds ?: ['__none__']), '?'));
-                $catPlaceholders = implode(',', array_fill(0, count($categoryIds), '?'));
-                $limit = 5 - count($recommendations);
-
-                $extra = $db->select("
-                    SELECT c.id, c.title, c.slug, c.synopsis, c.tags,
-                           c.subscribe_count, c.read_count, c.rating,
-                           mcc.name AS category
-                    FROM content c
-                    LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
-                    WHERE c.is_published = 1 AND c.is_deleted = 0
-                      AND c.category_id NOT IN ({$catPlaceholders})
-                      AND c.id NOT IN ({$exPlaceholders})
-                      AND c.id NOT IN (
-                          SELECT DISTINCT content_id FROM read_history
-                          WHERE user_id = ? AND is_deleted = 0
-                      )
-                    ORDER BY c.subscribe_count DESC, c.read_count DESC
-                    LIMIT {$limit}
-                ", array_merge($categoryIds, $existingIds ?: ['__none__'], [$userId]));
-
-                $recommendations = array_merge($recommendations, $extra);
-            }
+            ", array_merge($catParams, [$userId]));
         }
 
         return response()->json([

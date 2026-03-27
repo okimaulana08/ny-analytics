@@ -39,7 +39,7 @@
                         class="flex-1 h-10 px-3.5 text-sm rounded-xl outline-none transition-all duration-150 bg-slate-50 dark:bg-slate-800 dark:[color-scheme:dark] border text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 {{ $errors->has('template_id') ? 'border-red-400' : 'border-slate-200 dark:border-white/[0.08]' }}">
                         <option value="">— Pilih Template —</option>
                         @foreach($templates as $tmpl)
-                            <option value="{{ $tmpl->id }}" {{ old('template_id') == $tmpl->id ? 'selected' : '' }}>
+                            <option value="{{ $tmpl->id }}" data-subject="{{ $tmpl->subject }}" {{ old('template_id') == $tmpl->id ? 'selected' : '' }}>
                                 {{ $tmpl->name }}
                             </option>
                         @endforeach
@@ -112,6 +112,16 @@ function toggleSchedule(radio) {
 document.getElementById('template_id').addEventListener('change', function() {
     const link = document.getElementById('preview-template-link');
     link.href = this.value ? '/admin/crm/templates/' + this.value + '/preview' : '#';
+
+    const subject = this.options[this.selectedIndex]?.dataset?.subject ?? '';
+    const subjectInput = document.querySelector('input[name="subject"]');
+    if (subject && !subjectInput.value) {
+        subjectInput.value = subject;
+    } else if (subject) {
+        if (confirm('Timpa subject dengan default dari template?')) {
+            subjectInput.value = subject;
+        }
+    }
 });
 </script>
 @endpush
