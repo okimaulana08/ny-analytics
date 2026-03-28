@@ -14,8 +14,8 @@
     </a>
 </div>
 
-<div class="flat-card">
-    <table class="w-full text-sm">
+<div class="flat-card overflow-x-auto">
+    <table class="w-full text-sm min-w-[640px]">
         <thead>
             <tr class="border-b border-slate-100 dark:border-white/[0.05]">
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Nama Template</th>

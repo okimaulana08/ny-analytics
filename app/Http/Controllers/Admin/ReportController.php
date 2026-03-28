@@ -600,8 +600,9 @@ class ReportController extends Controller
             'subscribes' => (int) ($trendByDate->get($d)?->subscribes ?? 0),
         ], $trendDates);
 
-        // Top content table (paginated)
+        // Top content table (paginated + filtered)
         $sort = $request->query('sort', 'reads');
+        $author = trim($request->query('author', ''));
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
         $offset = ($page - 1) * $perPage;
@@ -614,7 +615,20 @@ class ReportController extends Controller
         ];
         $orderSql = $orderMap[$sort] ?? $orderMap['reads'];
 
-        $total = $db->selectOne('SELECT COUNT(*) AS cnt FROM content c WHERE c.is_published=1 AND c.is_deleted=0')->cnt;
+        $authorWhere = '';
+        $authorParam = [];
+        if ($author !== '') {
+            $authorWhere = 'AND u.name LIKE ?';
+            $authorParam = ['%'.$author.'%'];
+        }
+
+        $countSql = "
+            SELECT COUNT(*) AS cnt
+            FROM content c
+            LEFT JOIN users u ON u.id = c.user_id
+            WHERE c.is_published=1 AND c.is_deleted=0 {$authorWhere}
+        ";
+        $total = $db->selectOne($countSql, $authorParam)->cnt;
         $totalPages = (int) ceil($total / $perPage);
 
         $contents = $db->select("
@@ -638,10 +652,10 @@ class ReportController extends Controller
                 SELECT content_id, AVG(sequence) AS avg_ch FROM chapters
                 WHERE is_published=1 AND is_deleted=0 GROUP BY content_id
             ) chapter_counts ON chapter_counts.content_id = c.id
-            WHERE c.is_published=1 AND c.is_deleted=0
+            WHERE c.is_published=1 AND c.is_deleted=0 {$authorWhere}
             ORDER BY {$orderSql}
             LIMIT {$perPage} OFFSET {$offset}
-        ");
+        ", $authorParam);
 
         // Top 5 by subscribe (for highlight cards)
         $topBySubscribe = $db->select('
@@ -655,8 +669,42 @@ class ReportController extends Controller
         return view('admin.reports.content', compact(
             'kpi', 'byCategory', 'trend30d', 'contents',
             'page', 'perPage', 'total', 'totalPages', 'sort',
-            'topBySubscribe'
+            'topBySubscribe', 'author'
         ));
+    }
+
+    public function contentReaders(Request $request, string $contentId): JsonResponse
+    {
+        $db = $this->db();
+
+        $content = $db->selectOne(
+            'SELECT id, title FROM content WHERE id = ? AND is_published=1 AND is_deleted=0',
+            [$contentId]
+        );
+
+        if (! $content) {
+            return response()->json(['error' => 'Konten tidak ditemukan.'], 404);
+        }
+
+        $readers = $db->select('
+            SELECT u.name, u.email, MAX(ur.created_at) AS last_read_at, COUNT(ur.id) AS read_count
+            FROM user_read ur
+            JOIN users u ON u.id = ur.user_id
+            WHERE ur.content_id = ? AND ur.user_id IS NOT NULL
+            GROUP BY ur.user_id, u.name, u.email
+            ORDER BY last_read_at DESC
+            LIMIT 200
+        ', [$contentId]);
+
+        return response()->json([
+            'title' => $content->title,
+            'readers' => array_map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'last_read_at' => $r->last_read_at,
+                'read_count' => (int) $r->read_count,
+            ], $readers),
+        ]);
     }
 
     // ── Acquisition & Referral ───────────────────────────────────────────────

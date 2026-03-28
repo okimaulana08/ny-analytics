@@ -26,6 +26,8 @@ class EmailCampaign extends Model
         'sent_count',
         'failed_count',
         'created_by',
+        'extra_recipients',
+        'excluded_emails',
     ];
 
     protected function casts(): array
@@ -33,6 +35,8 @@ class EmailCampaign extends Model
         return [
             'scheduled_at' => 'datetime',
             'sent_at' => 'datetime',
+            'extra_recipients' => 'array',
+            'excluded_emails' => 'array',
         ];
     }
 

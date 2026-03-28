@@ -4,8 +4,59 @@
 
 @section('content')
 
-{{-- KPI Cards --}}
+{{-- Readers Modal --}}
+<div x-data="readersModal()" @open-readers.window="open($event.detail)">
+    <div x-show="isOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="isOpen = false" style="display:none">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            {{-- Modal header --}}
+            <div class="flex items-start justify-between px-5 py-4 border-b border-slate-100 dark:border-white/[0.08] flex-shrink-0">
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-white">Pembaca Konten</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5 line-clamp-1" x-text="title"></p>
+                </div>
+                <div class="flex items-center gap-2 ml-3 flex-shrink-0">
+                    <span x-show="loading" class="text-xs text-slate-400 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Memuat...
+                    </span>
+                    <span x-show="!loading && readers.length" class="text-[11px] text-slate-400" x-text="readers.length + ' pembaca'"></span>
+                    <button @click="isOpen = false" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            {{-- Modal body --}}
+            <div class="flex-1 overflow-y-auto">
+                <div x-show="loading" class="flex items-center justify-center py-16 text-slate-400 text-sm">Memuat data pembaca...</div>
+                <div x-show="!loading && readers.length === 0" class="flex items-center justify-center py-16 text-slate-400 text-sm">Belum ada pembaca yang tercatat.</div>
+                <table x-show="!loading && readers.length > 0" class="w-full text-sm">
+                    <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800/80 backdrop-blur-sm">
+                        <tr class="border-b border-slate-100 dark:border-white/[0.06]">
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Nama</th>
+                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Email</th>
+                            <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sesi</th>
+                            <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Terakhir Baca</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(r, i) in readers" :key="i">
+                            <tr class="border-b border-slate-50 dark:border-white/[0.03] hover:bg-slate-50/70 dark:hover:bg-white/[0.02]">
+                                <td class="px-5 py-2.5 text-xs font-medium text-slate-700 dark:text-slate-200" x-text="r.name"></td>
+                                <td class="px-5 py-2.5 text-xs text-slate-500 dark:text-slate-400" x-text="r.email"></td>
+                                <td class="px-4 py-2.5 text-right font-mono text-xs text-slate-500" x-text="r.read_count"></td>
+                                <td class="px-4 py-2.5 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap" x-text="formatDate(r.last_read_at)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <p x-show="!loading && readers.length >= 200" class="text-center text-[11px] text-slate-400 py-3">Menampilkan 200 pembaca terakhir.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
+{{-- KPI Cards --}}
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
     <div class="glass-card p-5">
         <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Konten Publish</p>
@@ -32,8 +83,6 @@
 
 {{-- Charts Row --}}
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-5">
-
-    {{-- Daily Trend 30 days --}}
     <div class="glass-card p-5 xl:col-span-2">
         <div class="flex items-center justify-between mb-4">
             <div>
@@ -43,8 +92,6 @@
         </div>
         <div class="relative h-48"><canvas id="trendChart"></canvas></div>
     </div>
-
-    {{-- Category breakdown --}}
     <div class="glass-card p-5">
         <div class="mb-4">
             <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Reads per Kategori</h2>
@@ -78,20 +125,38 @@
 
 {{-- Content Table --}}
 <div class="flat-card">
-    <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Semua Konten Publish</h2>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{{ number_format($total) }} konten</p>
+    <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06]">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+                <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Semua Konten Publish</h2>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{{ number_format($total) }} konten{{ $author ? ' — filter: "'.e($author).'"' : '' }}</p>
+            </div>
+            {{-- Sort tabs --}}
+            <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/[0.04]">
+                @foreach(['reads' => 'Reads', 'views' => 'Views', 'subscribes' => 'Subscribe', 'recent' => 'Terbaru'] as $val => $label)
+                <a href="{{ request()->fullUrlWithQuery(['sort' => $val, 'page' => 1]) }}"
+                   class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all {{ $sort === $val ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700' }}">
+                    {{ $label }}
+                </a>
+                @endforeach
+            </div>
         </div>
-        {{-- Sort tabs --}}
-        <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/[0.04]">
-            @foreach(['reads' => 'Reads', 'views' => 'Views', 'subscribes' => 'Subscribe', 'recent' => 'Terbaru'] as $val => $label)
-            <a href="{{ request()->fullUrlWithQuery(['sort' => $val, 'page' => 1]) }}"
-               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all {{ $sort === $val ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700' }}">
-                {{ $label }}
+        {{-- Author filter --}}
+        <form method="GET" action="{{ route('admin.reports.content') }}" class="flex items-center gap-2">
+            <input type="hidden" name="sort" value="{{ $sort }}">
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <input type="text" name="author" value="{{ $author }}" placeholder="Filter by penulis..."
+                    class="h-9 pl-9 pr-3.5 text-xs rounded-xl outline-none bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 w-56">
+            </div>
+            <button type="submit" class="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors">Cari</button>
+            @if($author)
+            <a href="{{ route('admin.reports.content', ['sort' => $sort]) }}" class="h-9 px-3 flex items-center text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                Reset
             </a>
-            @endforeach
-        </div>
+            @endif
+        </form>
     </div>
 
     <div class="overflow-x-auto">
@@ -108,6 +173,7 @@
                 <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Conv%</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Publish</th>
+                <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Aksi</th>
             </tr>
         </thead>
         <tbody>
@@ -121,7 +187,7 @@
                 <td class="px-4 py-3 text-center font-mono text-xs text-slate-500">{{ $c->chapter_count }}</td>
                 <td class="px-4 py-3 text-right font-mono text-xs font-semibold text-teal-600 dark:text-teal-400">{{ number_format($c->read_count) }}</td>
                 <td class="px-4 py-3 text-right font-mono text-[11px] {{ ($c->reads_30d ?? 0) > 0 ? 'text-teal-500' : 'text-slate-300 dark:text-slate-600' }}">
-                    {{ $c->reads_30d > 0 ? number_format($c->reads_30d) : '—' }}
+                    {{ ($c->reads_30d ?? 0) > 0 ? number_format($c->reads_30d) : '—' }}
                 </td>
                 <td class="px-4 py-3 text-right font-mono text-xs text-blue-600 dark:text-blue-400">{{ number_format($c->view_count) }}</td>
                 <td class="px-4 py-3 text-right font-mono text-xs font-semibold {{ $c->subscribe_count > 0 ? 'text-violet-600 dark:text-violet-400' : 'text-slate-300 dark:text-slate-600' }}">
@@ -140,9 +206,17 @@
                 <td class="px-4 py-3 text-center font-mono text-[11px] text-slate-400 whitespace-nowrap">
                     {{ $c->published_at ? \Carbon\Carbon::parse($c->published_at)->format('d M Y') : '—' }}
                 </td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button"
+                        onclick="window.dispatchEvent(new CustomEvent('open-readers', { detail: { id: '{{ $c->id }}', title: {{ json_encode($c->title) }} } }))"
+                        class="h-7 px-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-500/30 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors whitespace-nowrap">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        Pembaca
+                    </button>
+                </td>
             </tr>
             @empty
-            <tr><td colspan="10" class="px-5 py-12 text-center text-sm text-slate-400">Tidak ada konten.</td></tr>
+            <tr><td colspan="11" class="px-5 py-12 text-center text-sm text-slate-400">Tidak ada konten.</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -159,12 +233,43 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+window.readersModal = function () {
+    return {
+        isOpen: false,
+        loading: false,
+        title: '',
+        readers: [],
+        open: async function (detail) {
+            this.isOpen = true;
+            this.loading = true;
+            this.title = detail.title;
+            this.readers = [];
+            try {
+                var res = await fetch('/admin/reports/content/readers/' + detail.id, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+                });
+                var data = await res.json();
+                this.readers = data.readers || [];
+                this.title = data.title || detail.title;
+            } catch (e) {
+                this.readers = [];
+            } finally {
+                this.loading = false;
+            }
+        },
+        formatDate: function (val) {
+            if (!val) { return '—'; }
+            var d = new Date(val);
+            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+    };
+};
+
 const dark = document.documentElement.classList.contains('dark');
 const gridColor = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
 const tickColor = dark ? '#475569' : '#94a3b8';
 const tt = { backgroundColor: dark?'#1e293b':'#fff', titleColor: dark?'#f1f5f9':'#1e293b', bodyColor: dark?'#94a3b8':'#64748b', borderColor: dark?'#334155':'#e2e8f0', borderWidth:1, padding:10, cornerRadius:10 };
 
-// Trend Chart
 const trend = @json($trend30d);
 new Chart(document.getElementById('trendChart'), {
     type: 'line',
@@ -179,7 +284,6 @@ new Chart(document.getElementById('trendChart'), {
     options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, plugins:{ legend:{display:true,labels:{color:tickColor,font:{size:10},boxWidth:10}}, tooltip:{...tt} }, scales:{ x:{grid:{display:false},ticks:{color:tickColor,font:{size:10},maxTicksLimit:10},border:{display:false}}, y:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}},border:{display:false},beginAtZero:true} } }
 });
 
-// Category Chart
 const cats = @json($byCategory);
 const catColors = ['#0d9488','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#ec4899','#14b8a6'];
 new Chart(document.getElementById('catChart'), {

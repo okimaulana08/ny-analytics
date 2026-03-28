@@ -19,6 +19,12 @@ class StoreBroadcastEmailRequest extends FormRequest
             'template_id' => ['required', 'integer', 'exists:sqlite.email_templates,id'],
             'subject' => ['required', 'string', 'max:255'],
             'scheduled_at' => ['nullable', 'date', 'after:now'],
+            'extra_email' => ['nullable', 'array'],
+            'extra_email.*' => ['nullable', 'email'],
+            'extra_name' => ['nullable', 'array'],
+            'extra_name.*' => ['nullable', 'string', 'max:255'],
+            'excluded_emails' => ['nullable', 'array'],
+            'excluded_emails.*' => ['nullable', 'email'],
         ];
     }
 

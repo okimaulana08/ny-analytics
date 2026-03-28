@@ -40,7 +40,7 @@ class EmailGroupResolver
     }
 
     /**
-     * @return array<int, array{email: string, name: string, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
      */
     private function resolveUserBaru(array $params): array
     {
@@ -52,10 +52,11 @@ class EmailGroupResolver
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->orderByDesc('created_at')
-            ->get(['email', 'name', 'created_at'])
+            ->get(['id', 'email', 'name', 'created_at'])
             ->map(fn ($u) => [
                 'email' => $u->email,
                 'name' => $u->name ?? '',
+                'user_id' => (string) $u->id,
                 'params' => [
                     'name' => $u->name ?? 'Pengguna',
                     'email' => $u->email,
@@ -81,12 +82,13 @@ class EmailGroupResolver
             ->whereNotNull('u.email')
             ->where('u.email', '!=', '')
             ->orderBy('t.expired_at')
-            ->get(['u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
+            ->get(['u.id', 'u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
             ->unique('email');
 
         return $rows->map(fn ($r) => [
             'email' => $r->email,
             'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
             'params' => [
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,
@@ -97,7 +99,7 @@ class EmailGroupResolver
     }
 
     /**
-     * @return array<int, array{email: string, name: string, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
      */
     private function resolveBelumBayar(): array
     {
@@ -112,10 +114,11 @@ class EmailGroupResolver
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->orderByDesc('created_at')
-            ->get(['email', 'name', 'created_at'])
+            ->get(['id', 'email', 'name', 'created_at'])
             ->map(fn ($u) => [
                 'email' => $u->email,
                 'name' => $u->name ?? '',
+                'user_id' => (string) $u->id,
                 'params' => [
                     'name' => $u->name ?? 'Pengguna',
                     'email' => $u->email,
@@ -126,7 +129,7 @@ class EmailGroupResolver
     }
 
     /**
-     * @return array<int, array{email: string, name: string, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
      */
     private function resolveUserLoyal(array $params): array
     {
@@ -138,7 +141,7 @@ class EmailGroupResolver
             ->where('t.status', 'paid')
             ->whereNotNull('u.email')
             ->where('u.email', '!=', '')
-            ->selectRaw('u.email, u.name, COUNT(t.id) as trx_count')
+            ->selectRaw('u.id, u.email, u.name, COUNT(t.id) as trx_count')
             ->groupBy('u.id', 'u.email', 'u.name')
             ->havingRaw('trx_count >= ?', [$minTrx])
             ->orderByDesc('trx_count')
@@ -147,6 +150,7 @@ class EmailGroupResolver
         return $rows->map(fn ($r) => [
             'email' => $r->email,
             'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
             'params' => [
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,
@@ -180,11 +184,12 @@ class EmailGroupResolver
             })
             ->whereNotNull('u.email')
             ->where('u.email', '!=', '')
-            ->get(['u.email', 'u.name', 'fp.first_paid']);
+            ->get(['u.id', 'u.email', 'u.name', 'fp.first_paid']);
 
         return $rows->map(fn ($r) => [
             'email' => $r->email,
             'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
             'params' => [
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,
@@ -207,12 +212,13 @@ class EmailGroupResolver
             ->whereNotNull('u.email')
             ->where('u.email', '!=', '')
             ->orderByDesc('t.expired_at')
-            ->get(['u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
+            ->get(['u.id', 'u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
             ->unique('email');
 
         return $rows->map(fn ($r) => [
             'email' => $r->email,
             'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
             'params' => [
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,
@@ -240,10 +246,11 @@ class EmailGroupResolver
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->orderByDesc('created_at')
-            ->get(['email', 'name', 'created_at'])
+            ->get(['id', 'email', 'name', 'created_at'])
             ->map(fn ($u) => [
                 'email' => $u->email,
                 'name' => $u->name ?? '',
+                'user_id' => (string) $u->id,
                 'params' => [
                     'name' => $u->name ?? 'Pengguna',
                     'email' => $u->email,
@@ -269,12 +276,13 @@ class EmailGroupResolver
             ->whereNotNull('u.email')
             ->where('u.email', '!=', '')
             ->orderByDesc('t.expired_at')
-            ->get(['u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
+            ->get(['u.id', 'u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
             ->unique('email');
 
         return $rows->map(fn ($r) => [
             'email' => $r->email,
             'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
             'params' => [
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,
@@ -316,7 +324,7 @@ class EmailGroupResolver
             ->whereNotIn('u.id', $activeUserIds)
             ->whereNotNull('u.email')
             ->where('u.email', '!=', '')
-            ->selectRaw('u.email, u.name, MAX(t.paid_at) as last_paid')
+            ->selectRaw('u.id, u.email, u.name, MAX(t.paid_at) as last_paid')
             ->groupBy('u.id', 'u.email', 'u.name')
             ->orderBy('last_paid')
             ->get()
@@ -325,6 +333,7 @@ class EmailGroupResolver
         return $rows->map(fn ($r) => [
             'email' => $r->email,
             'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
             'params' => [
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,

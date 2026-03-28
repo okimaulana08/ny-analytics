@@ -41,11 +41,19 @@ class BrevoService
             return ['success' => false, 'message_ids' => [], 'error' => 'API key not configured'];
         }
 
-        $messageVersions = array_map(fn ($r) => [
-            'to' => [['email' => $r['email'], 'name' => $r['name'] ?? '']],
-            'params' => $r['params'] ?? [],
-        ], $recipients);
+        // Render HTML and subject per-recipient using PHP substitution.
+        // This mirrors renderTemplate() and avoids relying on Brevo's server-side engine.
+        $messageVersions = array_map(function ($r) use ($htmlContent, $subject) {
+            $params = $r['params'] ?? [];
 
+            return [
+                'to' => [['email' => $r['email'], 'name' => $r['name'] ?? '']],
+                'htmlContent' => $this->renderTemplate($htmlContent, $params),
+                'subject' => $this->renderTemplate($subject, $params),
+            ];
+        }, $recipients);
+
+        // Global subject and htmlContent are required by Brevo even when overridden per-version.
         $payload = [
             'sender' => ['email' => $this->senderEmail, 'name' => $this->senderName],
             'subject' => $subject,

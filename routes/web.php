@@ -41,6 +41,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::get('/reports/realtime', [ReportController::class, 'realtime'])->name('reports.realtime');
     Route::get('/reports/user-activity', [ReportController::class, 'userActivity'])->name('reports.user-activity');
     Route::get('/reports/content', [ReportController::class, 'contentAnalytics'])->name('reports.content');
+    Route::get('/reports/content/readers/{contentId}', [ReportController::class, 'contentReaders'])->name('reports.content.readers');
     Route::get('/reports/acquisition', [ReportController::class, 'acquisition'])->name('reports.acquisition');
     Route::get('/reports/revenue-daily', [ReportController::class, 'revenueDaily'])->name('reports.revenue-daily');
     Route::post('/reports/revenue-daily/cost', [ReportController::class, 'saveMarketingCost'])->name('reports.revenue-daily.cost');
@@ -57,6 +58,8 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
         // Broadcast Email
         Route::get('/broadcast', [BroadcastEmailController::class, 'create'])->name('broadcast.create');
         Route::post('/broadcast/preview', [BroadcastEmailController::class, 'preview'])->name('broadcast.preview');
+        Route::post('/broadcast/preview-for-user', [BroadcastEmailController::class, 'previewForUser'])->name('broadcast.preview-for-user');
+        Route::get('/broadcast/search-users', [BroadcastEmailController::class, 'searchUsers'])->name('broadcast.search-users');
         Route::post('/broadcast', [BroadcastEmailController::class, 'store'])->name('broadcast.store');
 
         // Individual Email
@@ -69,6 +72,8 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
 
         // Email Templates
         Route::get('/templates/{template}/preview', [EmailTemplateController::class, 'preview'])->name('templates.preview');
+        Route::post('/templates/preview-html', [EmailTemplateController::class, 'previewHtml'])->name('templates.preview-html');
+        Route::post('/templates/ai-generate', [EmailTemplateController::class, 'aiGenerate'])->name('templates.ai-generate');
         Route::resource('templates', EmailTemplateController::class)->except(['show']);
 
         // Campaign History
