@@ -98,20 +98,24 @@ class EmailTemplateController extends Controller
 
         $prompt = <<<PROMPT
 Kamu adalah desainer email HTML profesional untuk platform baca novel digital bernama **Novelya** (novelya.id).
-Buat template email HTML yang lengkap, responsif, dan menarik.
+Buat template email HTML yang lengkap, responsif, dan menarik — HARUS kompatibel dengan Gmail, Outlook, dan Apple Mail.
 
 TUJUAN EMAIL:
 {$intent}
 
 {$paramSection}
 
-ATURAN:
+ATURAN WAJIB (EMAIL CLIENT COMPATIBILITY):
 1. Gunakan merge tag format {{nama_parameter}} (dua kurung kurawal) untuk nilai dinamis. Contoh: {{name}}, {{email}}, {{story_title}}.
-2. Tulis HTML yang clean dan responsif dengan inline styles agar kompatibel dengan semua email client.
-3. Warna brand Novelya: primary #7c3aed (violet), secondary #a78bfa (light violet), background putih/abu muda.
-4. Sertakan logo/nama "Novelya" di header dan link {$appUrl} di footer.
-5. Tone: hangat, personal, dalam Bahasa Indonesia.
-6. Jangan gunakan JavaScript. Semua gambar harus bisa diganti dengan placeholder teks.
+2. DILARANG: display:flex, display:grid, CSS transitions, CSS animations, -webkit-line-clamp. Gmail tidak mendukungnya.
+3. Untuk layout multi-kolom atau centering elemen: WAJIB gunakan <table cellpadding="0" cellspacing="0">.
+4. Untuk gambar cerita (story_cover): gunakan <img> di dalam <td style="text-align:center"> dengan width="200" style="display:block;margin:0 auto;max-width:100%;height:auto;border-radius:8px".
+5. Semua CSS properti penting harus ada sebagai INLINE STYLE (bukan hanya di <style> tag), terutama pada <img>, <a>, <td>, dan elemen kunci.
+6. Warna brand Novelya: primary #7c3aed (violet), secondary #a78bfa (light violet), background putih/abu muda.
+7. Sertakan logo/nama "Novelya" di header dengan background gradient violet dan link {$appUrl} di footer.
+8. Tone: hangat, personal, dalam Bahasa Indonesia.
+9. Jangan gunakan JavaScript.
+10. Max-width wrapper: 600px, menggunakan <table width="100%"> sebagai outer wrapper.
 
 OUTPUT WAJIB — balas HANYA dengan JSON object berikut (tanpa markdown code fence, tanpa teks lain):
 {
