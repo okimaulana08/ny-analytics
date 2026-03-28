@@ -54,9 +54,10 @@ class BrevoService
         }, $recipients);
 
         // Global subject and htmlContent are required by Brevo even when overridden per-version.
+        // Render global subject with defaults so Brevo's own engine doesn't get raw {{placeholders}}.
         $payload = [
             'sender' => ['email' => $this->senderEmail, 'name' => $this->senderName],
-            'subject' => $subject,
+            'subject' => $this->renderTemplate($subject, []),
             'htmlContent' => $htmlContent,
             'messageVersions' => $messageVersions,
         ];
