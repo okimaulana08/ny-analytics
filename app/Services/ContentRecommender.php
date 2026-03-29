@@ -108,7 +108,7 @@ class ContentRecommender
             'story_title' => $story->title ?? '',
             'story_cover' => $story->cover_image ?? '',
             'story_synopsis' => $synopsis,
-            'story_url' => $this->novelyaUrl.'/story/'.($story->slug ?? ''),
+            'story_url' => $this->novelyaUrl.'/detail/'.($story->slug ?? ''),
         ];
     }
 }

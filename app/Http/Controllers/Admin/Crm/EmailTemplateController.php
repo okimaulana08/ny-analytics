@@ -177,7 +177,7 @@ PROMPT;
             'story_title' => 'Cinta di Balik Hujan',
             'story_cover' => 'https://placehold.co/300x400/7c3aed/ffffff?text=Cover',
             'story_synopsis' => 'Sebuah kisah cinta yang mengharukan antara dua jiwa yang dipertemukan oleh takdir pada malam hujan yang tak terlupakan...',
-            'story_url' => config('brevo.novelya_url', 'https://novelya.id').'/story/demo',
+            'story_url' => config('brevo.novelya_url', 'https://novelya.id').'/detail/demo',
             'invoice_url' => config('brevo.novelya_url', 'https://novelya.id').'/payment/demo',
             'payment_status' => 'pending',
             'join_date' => now()->subDays(30)->format('d M Y'),
