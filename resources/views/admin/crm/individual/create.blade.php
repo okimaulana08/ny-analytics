@@ -4,6 +4,32 @@
 
 @section('content')
 <div class="max-w-2xl" x-data="individualEmailForm()">
+
+    {{-- Preview Modal --}}
+    <div x-show="previewOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="previewOpen = false" style="display:none">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-white/[0.08]">
+                <div>
+                    <p class="text-sm font-semibold text-slate-800 dark:text-white">Preview Email</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5" x-text="previewLabel"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div x-show="previewLoading" class="text-xs text-slate-400 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Memuat...
+                    </div>
+                    <button @click="previewOpen = false" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-hidden">
+                <iframe x-ref="previewFrame" class="w-full h-full border-0" style="min-height:500px"></iframe>
+            </div>
+        </div>
+    </div>
+
     <div class="flat-card p-6">
         <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white mb-5">Kirim Email ke Individu</h2>
 
@@ -71,10 +97,10 @@
                             </option>
                         @endforeach
                     </select>
-                    <a id="preview-template-link" :href="previewUrl" target="_blank" :class="templateId ? '' : 'pointer-events-none opacity-40'"
-                        class="h-10 px-3 inline-flex items-center text-xs text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-white/[0.08] rounded-xl hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors">
+                    <button type="button" @click="openPreview()" :disabled="!templateId"
+                        class="h-10 px-3 inline-flex items-center text-xs text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-white/[0.08] rounded-xl hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:pointer-events-none">
                         Preview
-                    </a>
+                    </button>
                 </div>
                 @error('template_id')<p class="mt-1.5 text-xs text-red-500">{{ $message }}</p>@enderror
             </div>
@@ -142,17 +168,12 @@ function individualEmailForm() {
         results: [],
         searched: false,
         selectedEmail: '{{ old('recipient_email', '') }}',
-        selectedName: '{{ old('recipient_name', '') }}',
+        selectedName:  '{{ old('recipient_name', '') }}',
+        selectedUserId: '',
         templateId: '{{ old('template_id', '') }}',
-
-        get previewUrl() {
-            if (!this.templateId) return '#';
-            const params = new URLSearchParams({
-                name:  this.selectedName  || 'Pengguna Demo',
-                email: this.selectedEmail || 'demo@novelya.id',
-            });
-            return '/admin/crm/templates/' + this.templateId + '/preview?' + params.toString();
-        },
+        previewOpen: false,
+        previewLoading: false,
+        previewLabel: '',
 
         async search() {
             const q = this.q.trim();
@@ -165,15 +186,17 @@ function individualEmailForm() {
         },
 
         selectUser(u) {
-            this.selectedEmail = u.email;
-            this.selectedName  = u.name || '';
+            this.selectedEmail  = u.email;
+            this.selectedName   = u.name || '';
+            this.selectedUserId = u.user_id || '';
             this.q = '';
             this.results = [];
         },
 
         clearSelection() {
-            this.selectedEmail = '';
-            this.selectedName  = '';
+            this.selectedEmail  = '';
+            this.selectedName   = '';
+            this.selectedUserId = '';
             this.q = '';
             this.results = [];
             this.searched = false;
@@ -187,6 +210,34 @@ function individualEmailForm() {
                 subjectInput.value = subject;
             } else if (subject && subjectInput.value && confirm('Timpa subject dengan default dari template?')) {
                 subjectInput.value = subject;
+            }
+        },
+
+        async openPreview() {
+            if (!this.templateId) return;
+            this.previewOpen = true;
+            this.previewLoading = true;
+            this.previewLabel = this.selectedEmail
+                ? 'Data aktual: ' + (this.selectedName || this.selectedEmail)
+                : 'Data sampel (tidak ada user dipilih)';
+            try {
+                const body = { template_id: this.templateId };
+                if (this.selectedUserId) {
+                    body.user_id    = this.selectedUserId;
+                    body.user_email = this.selectedEmail;
+                    body.user_name  = this.selectedName;
+                }
+                const res = await fetch('{{ route('admin.crm.broadcast.preview-for-user') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify(body),
+                });
+                this.$refs.previewFrame.srcdoc = await res.text();
+            } finally {
+                this.previewLoading = false;
             }
         },
 
