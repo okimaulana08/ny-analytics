@@ -189,15 +189,15 @@ PROMPT;
         return response($rendered, 200, ['Content-Type' => 'text/html']);
     }
 
-    public function preview(EmailTemplate $template): Response
+    public function preview(Request $request, EmailTemplate $template): Response
     {
         $brevo = app(BrevoService::class);
         $rendered = $brevo->renderTemplate($template->html_body, [
-            'name' => 'Pengguna Demo',
-            'email' => 'demo@novelya.id',
+            'name' => $request->query('name', 'Pengguna Demo'),
+            'email' => $request->query('email', 'demo@novelya.id'),
             'expiry_date' => now()->addDays(7)->format('d M Y'),
             'plan_name' => 'Premium Bulanan',
-            'app_url' => config('app.url'),
+            'app_url' => config('brevo.novelya_url', config('app.url')),
         ]);
 
         return response($rendered, 200, ['Content-Type' => 'text/html']);

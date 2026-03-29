@@ -109,9 +109,21 @@ function toggleSchedule(radio) {
     }
 }
 
-document.getElementById('template_id').addEventListener('change', function() {
+function updatePreviewLink() {
+    const templateId = document.getElementById('template_id').value;
     const link = document.getElementById('preview-template-link');
-    link.href = this.value ? '/admin/crm/templates/' + this.value + '/preview' : '#';
+    if (!templateId) {
+        link.href = '#';
+        return;
+    }
+    const name  = document.querySelector('input[name="recipient_name"]').value.trim()  || 'Pengguna Demo';
+    const email = document.querySelector('input[name="recipient_email"]').value.trim() || 'demo@novelya.id';
+    const params = new URLSearchParams({ name, email });
+    link.href = '/admin/crm/templates/' + templateId + '/preview?' + params.toString();
+}
+
+document.getElementById('template_id').addEventListener('change', function() {
+    updatePreviewLink();
 
     const subject = this.options[this.selectedIndex]?.dataset?.subject ?? '';
     const subjectInput = document.querySelector('input[name="subject"]');
@@ -123,5 +135,8 @@ document.getElementById('template_id').addEventListener('change', function() {
         }
     }
 });
+
+document.querySelector('input[name="recipient_name"]').addEventListener('input', updatePreviewLink);
+document.querySelector('input[name="recipient_email"]').addEventListener('input', updatePreviewLink);
 </script>
 @endpush
