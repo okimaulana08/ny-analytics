@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php artisan:*)"
+      "Bash(php artisan:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click",
+      "mcp__laravel-boost__database-query",
+      "mcp__playwright__browser_fill_form",
+      "Bash(npx playwright:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ]
 }

@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "laravel-boost": {
+      "type": "stdio",
+      "command": "php",
+      "args": ["artisan", "boost:mcp"]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}
