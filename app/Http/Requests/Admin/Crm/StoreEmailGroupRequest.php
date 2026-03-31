@@ -21,7 +21,7 @@ class StoreEmailGroupRequest extends FormRequest
             'criteria.filter' => ['required_if:type,dynamic', 'string'],
             'criteria.params' => ['nullable', 'array'],
             'members' => ['required_if:type,static', 'nullable', 'array'],
-            'members.*.email' => ['required', 'email', 'max:255'],
+            'members.*.email' => ['required_if:type,static', 'nullable', 'email', 'max:255'],
             'members.*.name' => ['nullable', 'string', 'max:255'],
         ];
     }
