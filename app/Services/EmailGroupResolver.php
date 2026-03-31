@@ -35,6 +35,7 @@ class EmailGroupResolver
             'user_baru_minggu_ini' => $this->resolveUserBaruMingguIni(),
             'user_dorman' => $this->resolveUserDorman($params),
             'akan_expired_3hari' => $this->resolveAkanExpired(['days' => 3]),
+            'semua_user' => $this->resolveSemuaUser(),
             default => [],
         };
     }
@@ -340,6 +341,32 @@ class EmailGroupResolver
                 'last_paid' => $r->last_paid ? Carbon::parse($r->last_paid)->format('d M Y') : '—',
             ],
         ])->values()->toArray();
+    }
+
+    /**
+     * Semua user yang terdaftar di database.
+     *
+     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
+     */
+    private function resolveSemuaUser(): array
+    {
+        return DB::connection('novel')
+            ->table('users')
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->orderByDesc('created_at')
+            ->get(['id', 'email', 'name', 'created_at'])
+            ->map(fn ($u) => [
+                'email' => $u->email,
+                'name' => $u->name ?? '',
+                'user_id' => (string) $u->id,
+                'params' => [
+                    'name' => $u->name ?? 'Pengguna',
+                    'email' => $u->email,
+                    'join_date' => Carbon::parse($u->created_at)->format('d M Y'),
+                ],
+            ])
+            ->toArray();
     }
 
     /**

@@ -79,6 +79,7 @@
         <option value="user_baru_minggu_ini" {{ $currentFilter === 'user_baru_minggu_ini' ? 'selected' : '' }}>User Baru Minggu Ini (7 hari terakhir)</option>
         <option value="akan_expired_3hari" {{ $currentFilter === 'akan_expired_3hari' ? 'selected' : '' }}>Akan Expired 3 Hari Lagi (urgensi tinggi)</option>
         <option value="user_dorman" {{ $currentFilter === 'user_dorman' ? 'selected' : '' }}>User Dorman (tidak aktif N hari)</option>
+        <option value="semua_user" {{ $currentFilter === 'semua_user' ? 'selected' : '' }}>Semua User Terdaftar</option>
     </select>
 
     {{-- Filter-specific params --}}
