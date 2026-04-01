@@ -55,13 +55,41 @@
 {{-- User Table --}}
 <div class="flat-card">
     {{-- Header & Filter --}}
-    <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <div class="px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex flex-wrap items-center gap-3">
+        <div class="flex-shrink-0">
             <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Daftar User</h2>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{{ number_format($total) }} user</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                @if($search)
+                    {{ number_format($total) }} hasil untuk <span class="text-violet-500 font-semibold">"{{ $search }}"</span>
+                @else
+                    {{ number_format($total) }} user
+                @endif
+            </p>
         </div>
+
+        {{-- Search --}}
+        <form method="GET" action="{{ route('admin.reports.user-activity') }}" class="flex-1 min-w-0 max-w-xs">
+            <input type="hidden" name="filter" value="{{ $filter }}">
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" name="search" value="{{ $search }}"
+                    placeholder="Cari nama atau email..."
+                    class="block w-full h-9 pl-9 pr-8 text-xs rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all">
+                @if($search)
+                <a href="{{ request()->fullUrlWithQuery(['search' => '', 'page' => 1]) }}"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </a>
+                @endif
+            </div>
+        </form>
+
         {{-- Filter tabs --}}
-        <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/[0.04]">
+        <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/[0.04] ml-auto">
             @foreach(['all' => 'Semua', 'new' => 'Baru (7h)', 'subscribed' => 'Berlangganan', 'never_login' => 'Belum Login'] as $val => $label)
             <a href="{{ request()->fullUrlWithQuery(['filter' => $val, 'page' => 1]) }}"
                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all {{ $filter === $val ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }}">
@@ -287,11 +315,82 @@
                     </svg>
                     Salin Pesan
                 </button>
-                <div id="rec-wa-btn-wrap">
-                    {{-- rendered by JS if phone available --}}
+                <div class="flex items-center gap-2">
+                    <div id="rec-email-btn-wrap">{{-- rendered by JS if email available --}}</div>
+                    <div id="rec-wa-btn-wrap">{{-- rendered by JS if phone available --}}</div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+{{-- ── Email Recommendation Modal ──────────────────────────────────────────── --}}
+<div id="email-rec-modal" class="fixed inset-0 hidden" style="z-index:60;">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeEmailRecModal()"></div>
+    <div class="absolute inset-y-0 right-0 w-full max-w-lg flex flex-col bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-white/[0.06] flex-shrink-0">
+            <div>
+                <p class="text-sm font-semibold text-slate-800 dark:text-white">Kirim Rekomendasi via Email</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Email akan dikirim langsung ke penerima</p>
+            </div>
+            <button onclick="closeEmailRecModal()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-400 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        {{-- Form --}}
+        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+
+            {{-- To --}}
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Kepada</label>
+                <input id="email-rec-to" type="email" readonly
+                    class="block w-full h-10 px-3.5 text-sm rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 font-mono outline-none cursor-default">
+            </div>
+
+            {{-- Subject --}}
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Subject Email</label>
+                <input id="email-rec-subject" type="text"
+                    class="block w-full h-10 px-3.5 text-sm rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all">
+            </div>
+
+            {{-- Preview --}}
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Preview Email</label>
+                <div class="rounded-xl border border-slate-200 dark:border-white/[0.08] overflow-hidden bg-white" style="height:380px;">
+                    <div id="email-rec-preview-loading" class="flex items-center justify-center gap-2 text-slate-400 text-xs" style="height:380px;">
+                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        Memuat preview...
+                    </div>
+                    <iframe id="email-rec-preview-frame" class="w-full border-0" style="height:380px;display:none;" sandbox="allow-same-origin"></iframe>
+                </div>
+            </div>
+
+        </div>
+
+        {{-- Footer --}}
+        <div class="px-5 py-3.5 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between gap-3 flex-shrink-0">
+            <button onclick="closeEmailRecModal()"
+                class="px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+                Batal
+            </button>
+            <button id="email-rec-send-btn" onclick="sendEmailRec()"
+                class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-blue-500/20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Kirim Sekarang
+            </button>
+        </div>
+
     </div>
 </div>
 
@@ -352,7 +451,9 @@ new Chart(document.getElementById('trendChart'), {
 });
 
 // ── Recommendation Modal ─────────────────────────────────────────────────────
-const REC_ROUTE_BASE = '{{ route('admin.reports.user-recommend', ['userId' => '__ID__']) }}';
+const REC_ROUTE_BASE          = '{{ route('admin.reports.user-recommend', ['userId' => '__ID__']) }}';
+const REC_EMAIL_PREVIEW_BASE  = '{{ route('admin.reports.user-recommend.email-preview', ['userId' => '__ID__']) }}';
+const REC_EMAIL_SEND_BASE     = '{{ route('admin.reports.user-recommend.send-email', ['userId' => '__ID__']) }}';
 const DEFAULT_TEMPLATE = `Halo {nama}! 👋
 
 Berdasarkan genre favoritmu ({genre_favorit}), kami punya rekomendasi cerita seru untukmu:
@@ -474,6 +575,17 @@ function renderRecModal(data) {
     document.getElementById('rec-wa-template').value = buildWaMessageFromTemplate(DEFAULT_TEMPLATE, data);
     updateWaCharCount();
 
+    // Send Email button
+    const emailWrap = document.getElementById('rec-email-btn-wrap');
+    if (user.email) {
+        emailWrap.innerHTML = `<button onclick="openEmailRecModal()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            Kirim ke Email
+        </button>`;
+    } else {
+        emailWrap.innerHTML = '';
+    }
+
     // Send WA button
     const wrap = document.getElementById('rec-wa-btn-wrap');
     if (_recPhone) {
@@ -539,6 +651,85 @@ function sendWaRecommend() {
     const msg  = buildWaMessage();
     const phone = _recPhone.replace(/\D/g, '').replace(/^0/, '62');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ── Email Recommendation ─────────────────────────────────────────────────────
+let _emailRecUserId = null;
+
+function openEmailRecModal() {
+    if (!_recData || !_recData.user) { return; }
+    const user = _recData.user;
+    _emailRecUserId = user.id;
+
+    document.getElementById('email-rec-to').value = user.email || '';
+    document.getElementById('email-rec-subject').value =
+        'Cerita pilihan untukmu dari Novelya \uD83D\uDCDA';
+
+    // Reset send button
+    const btn = document.getElementById('email-rec-send-btn');
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Kirim Sekarang';
+    btn.className = 'flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-blue-500/20';
+
+    // Show loading, hide iframe
+    document.getElementById('email-rec-preview-loading').style.display = 'flex';
+    document.getElementById('email-rec-preview-frame').style.display = 'none';
+
+    document.getElementById('email-rec-modal').classList.remove('hidden');
+
+    // Fetch preview HTML
+    fetch(REC_EMAIL_PREVIEW_BASE.replace('__ID__', encodeURIComponent(_emailRecUserId)))
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('email-rec-preview-loading').style.display = 'none';
+            const frame = document.getElementById('email-rec-preview-frame');
+            frame.srcdoc = html;
+            frame.style.display = 'block';
+        })
+        .catch(() => {
+            document.getElementById('email-rec-preview-loading').innerHTML =
+                '<span class="text-red-400 text-xs">Gagal memuat preview.</span>';
+        });
+}
+
+function closeEmailRecModal() {
+    document.getElementById('email-rec-modal').classList.add('hidden');
+    _emailRecUserId = null;
+}
+
+async function sendEmailRec() {
+    if (!_emailRecUserId) { return; }
+    const btn = document.getElementById('email-rec-send-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Mengirim...';
+
+    try {
+        const res = await fetch(REC_EMAIL_SEND_BASE.replace('__ID__', encodeURIComponent(_emailRecUserId)), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            },
+            body: JSON.stringify({
+                subject: document.getElementById('email-rec-subject').value,
+                email:   document.getElementById('email-rec-to').value,
+            }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Terkirim!';
+            btn.className = 'flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl shadow-sm';
+            setTimeout(() => closeEmailRecModal(), 2200);
+        } else {
+            alert('Gagal mengirim: ' + (data.error || 'Terjadi kesalahan.'));
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Kirim Sekarang';
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Kirim Sekarang';
+    }
 }
 
 function esc(s) {

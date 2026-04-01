@@ -47,6 +47,8 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::post('/reports/revenue-daily/cost', [ReportController::class, 'saveMarketingCost'])->name('reports.revenue-daily.cost');
     Route::get('/reports/user-daily', [ReportController::class, 'userDaily'])->name('reports.user-daily');
     Route::get('/reports/user-recommend/{userId}', [ReportController::class, 'userRecommend'])->name('reports.user-recommend');
+    Route::get('/reports/user-recommend/{userId}/email-preview', [ReportController::class, 'previewRecommendEmail'])->name('reports.user-recommend.email-preview');
+    Route::post('/reports/user-recommend/{userId}/send-email', [ReportController::class, 'sendRecommendEmail'])->name('reports.user-recommend.send-email');
 
     Route::prefix('assistant')->name('assistant.')->group(function () {
         Route::get('/stakeholder', [AssistantController::class, 'stakeholder'])->name('stakeholder');

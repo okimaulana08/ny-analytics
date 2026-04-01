@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DailyRevenueCost;
+use App\Services\BrevoService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -891,6 +893,7 @@ class ReportController extends Controller
 
         // ── User table (paginated) ─────────────────────────────────────────────
         $filter = $request->query('filter', 'all');  // all | new | subscribed | never_login
+        $search = trim((string) $request->query('search', ''));
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
         $offset = ($page - 1) * $perPage;
@@ -906,14 +909,22 @@ class ReportController extends Controller
             ? 'JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1'
             : 'LEFT JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1';
 
+        $whereSearch = '';
+        $searchBindings = [];
+        if ($search !== '') {
+            $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
+            $whereSearch = 'AND (u.name LIKE ? OR u.email LIKE ?)';
+            $searchBindings = [$like, $like];
+        }
+
         $countSql = "
             SELECT COUNT(DISTINCT u.id) AS cnt
             FROM users u
             {$joinFilter}
             LEFT JOIN profile p ON p.user_id = u.id
-            WHERE 1=1 {$whereFilter}
+            WHERE 1=1 {$whereFilter} {$whereSearch}
         ";
-        $total = $db->selectOne($countSql)->cnt;
+        $total = $db->selectOne($countSql, $searchBindings)->cnt;
         $totalPages = (int) ceil($total / $perPage);
 
         $users = $db->select("
@@ -933,11 +944,11 @@ class ReportController extends Controller
             FROM users u
             {$joinFilter}
             LEFT JOIN profile p ON p.user_id = u.id
-            WHERE 1=1 {$whereFilter}
+            WHERE 1=1 {$whereFilter} {$whereSearch}
             GROUP BY u.id, u.name, u.email, p.phone_number, u.created_at, u.last_login_at, um.is_active
             ORDER BY u.created_at DESC
             LIMIT {$perPage} OFFSET {$offset}
-        ");
+        ", $searchBindings);
 
         // ── Registration source (from attribution_events) ──────────────────────
         $acqSource = $db->select("
@@ -951,7 +962,7 @@ class ReportController extends Controller
 
         return view('admin.reports.user-activity', compact(
             'kpi', 'trendData', 'activeByHour', 'acqSource',
-            'users', 'page', 'perPage', 'total', 'totalPages', 'filter'
+            'users', 'page', 'perPage', 'total', 'totalPages', 'filter', 'search'
         ));
     }
 
@@ -1062,6 +1073,262 @@ class ReportController extends Controller
             'recent_reads' => $recentReads,
             'recommendations' => $recommendations,
         ]);
+    }
+
+    public function previewRecommendEmail(string $userId): Response
+    {
+        ['user' => $user, 'recs' => $recs, 'cats' => $cats] = $this->fetchRecommendData($userId);
+        if (! $user) {
+            abort(404);
+        }
+
+        return response($this->buildRecommendEmailHtml($user, $recs, $cats), 200, ['Content-Type' => 'text/html']);
+    }
+
+    public function sendRecommendEmail(Request $request, string $userId): JsonResponse
+    {
+        ['user' => $user, 'recs' => $recs, 'cats' => $cats] = $this->fetchRecommendData($userId);
+        if (! $user) {
+            return response()->json(['error' => 'User tidak ditemukan'], 404);
+        }
+
+        $email = $request->input('email') ?: $user->email;
+        if (! $email) {
+            return response()->json(['error' => 'Email penerima tidak tersedia'], 422);
+        }
+
+        $subject = $request->input('subject', 'Cerita pilihan untukmu dari Novelya 📚');
+        $html = $this->buildRecommendEmailHtml($user, $recs, $cats);
+
+        $result = app(BrevoService::class)->sendBatch(
+            [['email' => $email, 'name' => $user->name ?: '', 'params' => []]],
+            $subject,
+            $html
+        );
+
+        if (! $result['success']) {
+            return response()->json(['error' => $result['error'] ?? 'Gagal mengirim email'], 500);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** @return array{user: ?object, recs: array, cats: array} */
+    private function fetchRecommendData(string $userId): array
+    {
+        $db = $this->db();
+        $user = $db->selectOne('
+            SELECT u.id, u.name, u.email
+            FROM users u
+            WHERE u.id = ?
+        ', [$userId]);
+
+        if (! $user) {
+            return ['user' => null, 'recs' => [], 'cats' => []];
+        }
+
+        $cats = $db->select('
+            SELECT mcc.id, mcc.name, COUNT(rh.id) AS read_count
+            FROM read_history rh
+            JOIN content c ON c.id = rh.content_id AND c.is_deleted = 0
+            JOIN master_content_category mcc ON mcc.id = c.category_id
+            WHERE rh.user_id = ? AND rh.is_deleted = 0
+            GROUP BY mcc.id, mcc.name
+            ORDER BY read_count DESC
+            LIMIT 4
+        ', [$userId]);
+
+        $weights = [40, 30, 20, 10];
+
+        if (empty($cats)) {
+            $recs = $db->select('
+                SELECT c.title, c.slug, c.synopsis, mcc.name AS category
+                FROM content c
+                LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+                WHERE c.is_published = 1 AND c.is_deleted = 0
+                ORDER BY (
+                    GREATEST(0, 25 - FLOOR(DATEDIFF(NOW(), COALESCE(c.published_at, c.created_at)) / 3.6))
+                    + LEAST(25, FLOOR(LOG(GREATEST(c.subscribe_count + 1, 1)) * 5))
+                    + LEAST(10, FLOOR(c.rating * 2))
+                ) DESC
+                LIMIT 3
+            ');
+        } else {
+            $caseWhen = '';
+            $catParams = [];
+            foreach ($cats as $i => $cat) {
+                $w = $weights[$i] ?? 5;
+                $caseWhen .= " WHEN c.category_id = ? THEN {$w}";
+                $catParams[] = $cat->id;
+            }
+            $recs = $db->select("
+                SELECT c.title, c.slug, c.synopsis, mcc.name AS category
+                FROM content c
+                LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+                WHERE c.is_published = 1 AND c.is_deleted = 0
+                  AND c.id NOT IN (SELECT DISTINCT content_id FROM read_history WHERE user_id = ? AND is_deleted = 0)
+                ORDER BY (
+                    CASE {$caseWhen} ELSE 0 END
+                    + GREATEST(0, 25 - FLOOR(DATEDIFF(NOW(), COALESCE(c.published_at, c.created_at)) / 3.6))
+                    + LEAST(25, FLOOR(LOG(GREATEST(c.subscribe_count + 1, 1)) * 5))
+                    + LEAST(10, FLOOR(c.rating * 2))
+                ) DESC
+                LIMIT 3
+            ", array_merge([$userId], $catParams));
+        }
+
+        return ['user' => $user, 'recs' => $recs, 'cats' => $cats];
+    }
+
+    private function buildRecommendEmailHtml(object $user, array $recs, array $cats): string
+    {
+        $novelyaUrl = config('brevo.novelya_url', 'https://novelya.id');
+        $year = now()->year;
+        $name = htmlspecialchars($user->name ?: 'Kamu', ENT_QUOTES, 'UTF-8');
+
+        $genreLine = '';
+        if (! empty($cats)) {
+            $genres = implode(', ', array_map(
+                fn ($c) => htmlspecialchars($c->name, ENT_QUOTES, 'UTF-8'),
+                array_slice((array) $cats, 0, 3)
+            ));
+            $genreLine = "<p style=\"margin:12px 0 0;font-size:13px;color:rgba(255,255,255,0.8);font-family:sans-serif;\">Genre favoritmu: <strong>{$genres}</strong></p>";
+        }
+
+        $accentColors = [
+            ['#7c3aed', '#4338ca'],
+            ['#db2777', '#be185d'],
+            ['#0891b2', '#0e7490'],
+        ];
+
+        $storyCards = '';
+        foreach ($recs as $i => $rec) {
+            $title = htmlspecialchars($rec->title ?? '', ENT_QUOTES, 'UTF-8');
+            $category = htmlspecialchars($rec->category ?? '', ENT_QUOTES, 'UTF-8');
+            $url = $novelyaUrl.'/detail/'.($rec->slug ?? '');
+            $synopsis = '';
+            if (! empty($rec->synopsis)) {
+                $text = mb_strlen($rec->synopsis) > 160
+                    ? mb_substr($rec->synopsis, 0, 160).'...'
+                    : $rec->synopsis;
+                $synopsis = '<p style="margin:8px 0 0;font-size:13px;color:#6b7280;line-height:1.65;font-family:sans-serif;">'.htmlspecialchars($text, ENT_QUOTES, 'UTF-8').'</p>';
+            }
+            [$c1, $c2] = $accentColors[$i] ?? ['#7c3aed', '#4338ca'];
+            $num = (string) ($i + 1);
+            $catBadge = $category
+                ? "<p style=\"margin:6px 0 0;\"><span style=\"font-size:11px;font-weight:700;color:{$c1};background:#f5f3ff;padding:3px 10px;border-radius:20px;font-family:sans-serif;\">{$category}</span></p>"
+                : '';
+
+            $storyCards .= <<<CARD
+<tr>
+  <td style="background:#ffffff;padding:6px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:2px solid #f3f0ff;border-radius:14px;">
+      <tr>
+        <td style="padding:20px 22px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td width="44" valign="top">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td width="36" height="36" align="center" valign="middle" style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,{$c1},{$c2});color:#ffffff;font-size:18px;font-weight:800;font-family:sans-serif;text-align:center;">
+                      {$num}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td valign="top" style="padding-left:14px;">
+                <p style="margin:0;font-size:17px;font-weight:700;color:#111827;line-height:1.3;font-family:sans-serif;">{$title}</p>
+                {$catBadge}
+                {$synopsis}
+                <a href="{$url}" style="display:inline-block;margin-top:12px;font-size:13px;font-weight:700;color:{$c1};text-decoration:none;border:2px solid {$c1};padding:6px 18px;border-radius:20px;font-family:sans-serif;">Baca Sekarang &rarr;</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+CARD;
+        }
+
+        if ($storyCards === '') {
+            $storyCards = '<tr><td style="background:#ffffff;padding:20px 40px;text-align:center;color:#9ca3af;font-size:14px;font-family:sans-serif;">Tidak ada rekomendasi tersedia saat ini.</td></tr>';
+        }
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cerita pilihan untuk {$name}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f3ff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f3ff;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+
+        <tr>
+          <td style="background:linear-gradient(135deg,#7c3aed 0%,#4338ca 100%);border-radius:20px 20px 0 0;padding:40px 40px 36px;">
+            <p style="margin:0 0 6px;font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;font-family:sans-serif;">&#128218; Novelya</p>
+            <p style="margin:0 0 24px;font-size:13px;color:rgba(255,255,255,0.65);font-family:sans-serif;">Platform cerita digital terbaik</p>
+            <h1 style="margin:0;font-size:30px;font-weight:800;color:#ffffff;line-height:1.25;letter-spacing:-0.5px;font-family:sans-serif;">Hai {$name}! &#128075;</h1>
+            <p style="margin:8px 0 0;font-size:17px;font-weight:500;color:rgba(255,255,255,0.9);line-height:1.5;font-family:sans-serif;">Ada cerita-cerita yang cocok banget buat kamu &#127919;</p>
+            {$genreLine}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#ffffff;padding:28px 40px 12px;">
+            <p style="margin:0;font-size:15px;color:#374151;line-height:1.75;font-family:sans-serif;">
+              Sistem rekomendasi AI Novelya telah menganalisis riwayat bacaanmu dan menemukan cerita-cerita yang paling sesuai dengan seleramu. Jangan sampai kamu melewatkan cerita seru ini!
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#ffffff;padding:16px 40px 8px;">
+            <p style="margin:0;font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;font-family:sans-serif;">PILIHAN UNTUKMU</p>
+          </td>
+        </tr>
+
+        {$storyCards}
+
+        <tr><td style="background:#ffffff;height:12px;"></td></tr>
+
+        <tr>
+          <td style="background:#ffffff;padding:0 40px;">
+            <hr style="border:none;border-top:2px solid #f3f0ff;margin:0;">
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#ffffff;padding:28px 40px 36px;text-align:center;">
+            <p style="margin:0 0 20px;font-size:15px;color:#6b7280;line-height:1.7;font-family:sans-serif;">
+              Masih banyak cerita seru lainnya yang menunggumu!<br>Buka Novelya dan mulai petualangan bacaanmu sekarang.
+            </p>
+            <a href="{$novelyaUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4338ca);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:50px;letter-spacing:0.3px;font-family:sans-serif;">
+              Buka Novelya Sekarang &rarr;
+            </a>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#f5f3ff;border-radius:0 0 20px 20px;padding:20px 40px;text-align:center;">
+            <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;font-family:sans-serif;">Kamu menerima email ini karena terdaftar di Novelya.</p>
+            <p style="margin:0;font-size:12px;color:#c4b5fd;font-family:sans-serif;">&#169; {$year} Novelya. All rights reserved.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+HTML;
     }
 
     public function revenueDaily(Request $request): View
