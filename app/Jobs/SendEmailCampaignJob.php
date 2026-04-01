@@ -4,9 +4,11 @@ namespace App\Jobs;
 
 use App\Models\EmailCampaign;
 use App\Models\EmailCampaignLog;
+use App\Models\EmailTemplate;
 use App\Services\BrevoService;
 use App\Services\ContentRecommender;
 use App\Services\EmailGroupResolver;
+use App\Services\EmailTemplateBuilder;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,7 +25,7 @@ class SendEmailCampaignJob implements ShouldQueue
 
     public function __construct(public readonly int $campaignId) {}
 
-    public function handle(BrevoService $brevo, EmailGroupResolver $resolver, ContentRecommender $recommender): void
+    public function handle(BrevoService $brevo, EmailGroupResolver $resolver, ContentRecommender $recommender, EmailTemplateBuilder $builder): void
     {
         $campaign = EmailCampaign::with(['group', 'template'])->find($this->campaignId);
 
@@ -55,7 +57,9 @@ class SendEmailCampaignJob implements ShouldQueue
 
         $campaign->update(['recipient_count' => count($recipients)]);
 
-        $templateHtml = $campaign->template->html_body;
+        $template = $campaign->template;
+        $isBuiltIn = $template->isBuiltIn();
+        $templateHtml = $isBuiltIn ? '' : ($template->html_body ?? '');
 
         // Apply excluded emails
         if (! empty($campaign->excluded_emails)) {
@@ -79,11 +83,9 @@ class SendEmailCampaignJob implements ShouldQueue
             }
         }
 
-        $needsStoryData = (bool) preg_match('/\{\{story_/', $templateHtml);
-
-        // Detect all params used in the template
-        preg_match_all('/\{\{(\w+)\}\}/', $templateHtml, $tagMatches);
-        $usedParams = array_unique($tagMatches[1] ?? []);
+        $needsStoryData = $isBuiltIn
+            ? $template->template_type === EmailTemplate::TYPE_STORY_RECOMMENDATION
+            : (bool) preg_match('/\{\{story_/', $templateHtml);
 
         $appUrl = config('brevo.novelya_url', config('app.url'));
 
@@ -152,9 +154,11 @@ class SendEmailCampaignJob implements ShouldQueue
             $r['params']['invoice_url'] = $appUrl.'/payment';
 
             if ($needsStoryData) {
-                $story = $recommender->getTopForUser($r['user_id'] ?? null);
-                if ($story) {
-                    $r['params'] = array_merge($r['params'], $story);
+                $stories = $recommender->getTopNForUser($r['user_id'] ?? null, 3);
+                $r['params']['stories'] = $stories;
+                // Backwards compat: also expose single-story keys for custom templates
+                if (! $isBuiltIn && ! empty($stories)) {
+                    $r['params'] = array_merge($r['params'], $stories[0]);
                 }
             }
         }
@@ -164,11 +168,41 @@ class SendEmailCampaignJob implements ShouldQueue
             ? $campaign->scheduled_at->toIso8601String()
             : null;
 
+        // For built-in templates, generate per-recipient HTML; group into pseudo-chunks of 1
+        // so BrevoService still handles delivery. For custom: existing batch flow.
         $chunks = array_chunk($recipients, 900);
         $sentCount = 0;
         $failedCount = 0;
 
         foreach ($chunks as $chunk) {
+            // Built-in: render HTML per recipient so each gets personalised content
+            if ($isBuiltIn) {
+                foreach ($chunk as $r) {
+                    $html = $builder->build($template, $r['params']);
+                    $result = $brevo->sendBatch(
+                        recipients: [$r],
+                        subject: $campaign->subject,
+                        htmlContent: $html,
+                        scheduledAt: $scheduledAt
+                    );
+                    $logStatus = $result['success'] ? 'sent' : 'failed';
+                    EmailCampaignLog::insert([[
+                        'email_campaign_id' => $campaign->id,
+                        'recipient_email' => $r['email'],
+                        'recipient_name' => $r['name'] ?? null,
+                        'status' => $logStatus,
+                        'brevo_message_id' => $result['message_ids'][0] ?? null,
+                        'error_message' => $result['success'] ? null : $result['error'],
+                        'sent_at' => $result['success'] ? now() : null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]]);
+                    $result['success'] ? $sentCount++ : $failedCount++;
+                }
+
+                continue;
+            }
+
             $result = $brevo->sendBatch(
                 recipients: $chunk,
                 subject: $campaign->subject,

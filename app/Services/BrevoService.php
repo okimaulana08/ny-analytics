@@ -129,6 +129,9 @@ class BrevoService
         $merged = array_merge($defaults, $params);
 
         foreach ($merged as $key => $value) {
+            if (is_array($value)) {
+                continue;
+            }
             $html = str_replace("{{{$key}}}", (string) $value, $html);
         }
 

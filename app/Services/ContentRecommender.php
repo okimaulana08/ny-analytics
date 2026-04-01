@@ -15,17 +15,27 @@ class ContentRecommender
     }
 
     /**
-     * Get the top recommended story params for a given user.
-     * Uses category-affinity scoring when history is available, falls back to freshness+popularity.
+     * Get the top recommended story params for a given user (single story, backwards compat).
      *
      * @return array{story_title: string, story_cover: string, story_synopsis: string, story_url: string}|null
      */
     public function getTopForUser(?string $userId): ?array
     {
+        return $this->getTopNForUser($userId, 1)[0] ?? null;
+    }
+
+    /**
+     * Get the top N recommended stories for a given user.
+     * Uses category-affinity scoring when history is available, falls back to freshness+popularity.
+     *
+     * @return array<int, array{story_title: string, story_cover: string, story_synopsis: string, story_url: string, story_category: string}>
+     */
+    public function getTopNForUser(?string $userId, int $n = 3): array
+    {
         $db = DB::connection('novel');
 
         if (! $userId) {
-            return $this->coldStart($db, null);
+            return $this->coldStartN($db, null, $n);
         }
 
         $topCategories = $db->select('
@@ -39,7 +49,7 @@ class ContentRecommender
         ', [$userId]);
 
         if (empty($topCategories)) {
-            return $this->coldStart($db, $userId);
+            return $this->coldStartN($db, $userId, $n);
         }
 
         $weights = [40, 30, 20, 10];
@@ -53,8 +63,10 @@ class ContentRecommender
         }
 
         $rows = $db->select("
-            SELECT c.title, c.slug, c.synopsis, c.cover_image
+            SELECT c.title, c.slug, c.synopsis, c.cover_image,
+                   mcc.name AS category_name
             FROM content c
+            LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
             WHERE c.is_published = 1 AND c.is_deleted = 0
               AND c.id NOT IN (
                   SELECT DISTINCT content_id FROM read_history
@@ -66,21 +78,31 @@ class ContentRecommender
                 + LEAST(25, FLOOR(LOG(GREATEST(c.subscribe_count + 1, 1)) * 5))
                 + LEAST(10, FLOOR(c.rating * 2))
             ) DESC
-            LIMIT 1
+            LIMIT {$n}
         ", array_merge($catParams, [$userId]));
 
-        return ! empty($rows) ? $this->format($rows[0]) : null;
+        return array_map(fn ($r) => $this->format($r), $rows);
     }
 
     private function coldStart(ConnectionInterface $db, ?string $userId): ?array
+    {
+        return $this->coldStartN($db, $userId, 1)[0] ?? null;
+    }
+
+    /**
+     * @return array<int, array{story_title: string, story_cover: string, story_synopsis: string, story_url: string, story_category: string}>
+     */
+    private function coldStartN(ConnectionInterface $db, ?string $userId, int $n): array
     {
         $excludeClause = $userId
             ? 'AND c.id NOT IN (SELECT DISTINCT content_id FROM read_history WHERE user_id = ? AND is_deleted = 0)'
             : '';
 
         $rows = $db->select("
-            SELECT c.title, c.slug, c.synopsis, c.cover_image
+            SELECT c.title, c.slug, c.synopsis, c.cover_image,
+                   mcc.name AS category_name
             FROM content c
+            LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
             WHERE c.is_published = 1 AND c.is_deleted = 0
               {$excludeClause}
             ORDER BY (
@@ -88,14 +110,14 @@ class ContentRecommender
                 + LEAST(25, FLOOR(LOG(GREATEST(c.subscribe_count + 1, 1)) * 5))
                 + LEAST(10, FLOOR(c.rating * 2))
             ) DESC
-            LIMIT 1
+            LIMIT {$n}
         ", $userId ? [$userId] : []);
 
-        return ! empty($rows) ? $this->format($rows[0]) : null;
+        return array_map(fn ($r) => $this->format($r), $rows);
     }
 
     /**
-     * @return array{story_title: string, story_cover: string, story_synopsis: string, story_url: string}
+     * @return array{story_title: string, story_cover: string, story_synopsis: string, story_url: string, story_category: string}
      */
     private function format(object $story): array
     {
@@ -109,6 +131,7 @@ class ContentRecommender
             'story_cover' => $story->cover_image ?? '',
             'story_synopsis' => $synopsis,
             'story_url' => $this->novelyaUrl.'/detail/'.($story->slug ?? ''),
+            'story_category' => $story->category_name ?? '',
         ];
     }
 }

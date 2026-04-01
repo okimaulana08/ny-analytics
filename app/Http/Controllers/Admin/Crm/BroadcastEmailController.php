@@ -11,6 +11,7 @@ use App\Models\EmailTemplate;
 use App\Services\BrevoService;
 use App\Services\ContentRecommender;
 use App\Services\EmailGroupResolver;
+use App\Services\EmailTemplateBuilder;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -91,12 +92,17 @@ class BroadcastEmailController extends Controller
             }
         }
 
-        $story = app(ContentRecommender::class)->getTopForUser($userId ?: null);
-        if ($story) {
-            $params = array_merge($params, $story);
+        if ($template->isBuiltIn()) {
+            $stories = app(ContentRecommender::class)->getTopNForUser($userId ?: null, 3);
+            $params['stories'] = $stories;
+            $html = app(EmailTemplateBuilder::class)->build($template, $params);
+        } else {
+            $story = app(ContentRecommender::class)->getTopForUser($userId ?: null);
+            if ($story) {
+                $params = array_merge($params, $story);
+            }
+            $html = app(BrevoService::class)->renderTemplate($template->html_body ?? '', $params);
         }
-
-        $html = app(BrevoService::class)->renderTemplate($template->html_body, $params);
 
         return response($html, 200, ['Content-Type' => 'text/html']);
     }

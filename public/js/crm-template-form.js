@@ -69,14 +69,30 @@ window.aiTemplateGenerator = function () {
 };
 
 window.openTemplatePreview = function () {
-    var html = document.getElementById('field_html_body').value;
-    if (!html.trim()) { alert('HTML body kosong.'); return; }
+    var type = window._crmCurrentType || 'custom';
     var win = window.open('', '_blank');
     win.document.write('Memuat preview...');
+
+    var payload;
+    if (type !== 'custom') {
+        payload = JSON.stringify({
+            template_type: type,
+            template_settings: window._crmTemplateSettings || {},
+        });
+    } else {
+        var html = document.getElementById('field_html_body').value;
+        if (!html.trim()) {
+            win.close();
+            alert('HTML body kosong.');
+            return;
+        }
+        payload = JSON.stringify({ html_body: html });
+    }
+
     fetch(window._crmRoutes.previewHtml, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-        body: JSON.stringify({ html_body: html }),
+        body: payload,
     })
     .then(function (r) { return r.text(); })
     .then(function (rendered) {
@@ -98,9 +114,15 @@ document.addEventListener('DOMContentLoaded', function () {
     var mount    = document.getElementById('cm-editor-mount');
 
     if (textarea && mount && typeof CodeMirror !== 'undefined') {
-        var isDark = document.documentElement.classList.contains('dark');
+        // Store original html_body value so we can restore it if user switches back to custom
+        textarea.setAttribute('data-orig', textarea.value);
+
+        var isDark       = document.documentElement.classList.contains('dark');
+        var initialType  = window._crmCurrentType || 'custom';
+        var isBuiltIn    = initialType !== 'custom';
+
         window.cmEditor = CodeMirror(mount, {
-            value: textarea.value,
+            value: isBuiltIn ? '' : textarea.value,
             mode: 'htmlmixed',
             theme: isDark ? 'dracula' : 'default',
             lineNumbers: true,
@@ -108,23 +130,79 @@ document.addEventListener('DOMContentLoaded', function () {
             indentUnit: 2,
             tabSize: 2,
             autofocus: false,
+            readOnly: isBuiltIn,
         });
 
         window.cmEditor.on('change', function () {
+            if (isBuiltIn) { return; }
             textarea.value = window.cmEditor.getValue();
             if (!isSyncingFromPreview) {
                 schedulePreviewRefresh();
             }
         });
 
-        // Force re-render after mount (fixes blank editor in dark mode / existing content)
-        setTimeout(function () {
-            window.cmEditor.refresh();
-        }, 50);
+        setTimeout(function () { window.cmEditor.refresh(); }, 50);
+
+        // Load sample HTML for built-in types on page load
+        if (isBuiltIn) {
+            loadBuiltInSampleHtml(initialType, window._crmTemplateSettings || {});
+        }
     }
 
     initTogglePreview();
 });
+
+// Called from Alpine when templateType changes (create mode only)
+window._onTemplateTypeChange = function (newType) {
+    var cm = window.cmEditor;
+    if (!cm) { return; }
+
+    var textarea = document.getElementById('field_html_body');
+
+    if (newType === 'custom') {
+        cm.setOption('readOnly', false);
+        var orig = (textarea && textarea.getAttribute('data-orig')) || '';
+        cm.setValue(orig);
+        if (textarea) { textarea.value = orig; }
+    } else {
+        cm.setOption('readOnly', true);
+        loadBuiltInSampleHtml(newType, window._crmTemplateSettings || {});
+    }
+
+    if (previewOpen) {
+        schedulePreviewRefresh();
+    }
+};
+
+// Called from Alpine when promo settings change
+window._refreshBuiltInPreview = function () {
+    var type = window._crmCurrentType || 'custom';
+    if (type === 'custom') { return; }
+    loadBuiltInSampleHtml(type, window._crmTemplateSettings || {});
+};
+
+function loadBuiltInSampleHtml(type, settings) {
+    fetch(window._crmRoutes.previewHtml, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({ template_type: type, template_settings: settings }),
+    })
+    .then(function (r) { return r.text(); })
+    .then(function (html) {
+        if (window.cmEditor) {
+            window.cmEditor.setValue(html);
+        }
+        var textarea = document.getElementById('field_html_body');
+        if (textarea) { textarea.value = html; }
+        if (previewOpen) {
+            var iframeEl = document.getElementById('preview-iframe');
+            if (iframeEl) { iframeEl.srcdoc = html; }
+        }
+    });
+}
 
 function schedulePreviewRefresh() {
     if (!previewOpen) { return; }
@@ -133,8 +211,19 @@ function schedulePreviewRefresh() {
 }
 
 function refreshPreview() {
-    var html = document.getElementById('field_html_body').value;
-    if (!html.trim()) { return; }
+    var type    = window._crmCurrentType || 'custom';
+    var payload;
+
+    if (type !== 'custom') {
+        payload = JSON.stringify({
+            template_type: type,
+            template_settings: window._crmTemplateSettings || {},
+        });
+    } else {
+        var html = document.getElementById('field_html_body').value;
+        if (!html.trim()) { return; }
+        payload = JSON.stringify({ html_body: html });
+    }
 
     var loadingEl = document.getElementById('preview-loading');
     var iframeEl  = document.getElementById('preview-iframe');
@@ -149,7 +238,7 @@ function refreshPreview() {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
         },
-        body: JSON.stringify({ html_body: html }),
+        body: payload,
     })
     .then(function (r) { return r.text(); })
     .then(function (rendered) {
@@ -174,34 +263,39 @@ function makePreviewEditable(iframeEl) {
     var doc = iframeEl.contentDocument;
     if (!doc || !doc.body) { return; }
 
-    doc.body.contentEditable = 'true';
-    doc.body.style.outline = 'none';
+    var type = window._crmCurrentType || 'custom';
 
-    // Hint toast
-    var hint = doc.createElement('div');
-    hint.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(124,58,237,0.9);color:#fff;font-size:11px;padding:5px 12px;border-radius:6px;z-index:9999;pointer-events:none;font-family:sans-serif;opacity:1;transition:opacity 0.5s;';
-    hint.textContent = '\u270F\uFE0F Klik untuk edit langsung';
-    doc.body.appendChild(hint);
-    setTimeout(function () { hint.style.opacity = '0'; }, 2500);
-    setTimeout(function () { if (hint.parentNode) { hint.parentNode.removeChild(hint); } }, 3100);
+    // Direct editing only for custom type
+    if (type === 'custom') {
+        doc.body.contentEditable = 'true';
+        doc.body.style.outline = 'none';
 
-    // MutationObserver → sync ke CodeMirror
-    var syncTimer = null;
-    var observer  = new MutationObserver(function () {
-        clearTimeout(syncTimer);
-        syncTimer = setTimeout(function () {
-            var html = doc.documentElement.outerHTML;
-            isSyncingFromPreview = true;
-            document.getElementById('field_html_body').value = html;
-            if (window.cmEditor) {
-                window.cmEditor.setValue(html);
-            }
-            isSyncingFromPreview = false;
-        }, 800);
-    });
-    observer.observe(doc.body, { childList: true, subtree: true, characterData: true });
+        // Hint toast
+        var hint = doc.createElement('div');
+        hint.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(124,58,237,0.9);color:#fff;font-size:11px;padding:5px 12px;border-radius:6px;z-index:9999;pointer-events:none;font-family:sans-serif;opacity:1;transition:opacity 0.5s;';
+        hint.textContent = '\u270F\uFE0F Klik untuk edit langsung';
+        doc.body.appendChild(hint);
+        setTimeout(function () { hint.style.opacity = '0'; }, 2500);
+        setTimeout(function () { if (hint.parentNode) { hint.parentNode.removeChild(hint); } }, 3100);
 
-    // Click → highlight baris di CodeMirror
+        // MutationObserver → sync ke CodeMirror
+        var syncTimer = null;
+        var observer  = new MutationObserver(function () {
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(function () {
+                var html = doc.documentElement.outerHTML;
+                isSyncingFromPreview = true;
+                document.getElementById('field_html_body').value = html;
+                if (window.cmEditor) {
+                    window.cmEditor.setValue(html);
+                }
+                isSyncingFromPreview = false;
+            }, 800);
+        });
+        observer.observe(doc.body, { childList: true, subtree: true, characterData: true });
+    }
+
+    // Click → highlight baris di CodeMirror (semua tipe)
     doc.addEventListener('click', function (e) {
         var el = e.target;
         while (el && (el.tagName === 'BODY' || el.tagName === 'HTML')) {
@@ -224,7 +318,6 @@ function makePreviewEditable(iframeEl) {
                 }
             }
         }
-        // Fallback: baris pertama yang mengandung tag ini
         if (targetLine === -1) {
             for (var j = 0; j < lines.length; j++) {
                 if (lines[j].toLowerCase().indexOf('<' + tagName) !== -1) {

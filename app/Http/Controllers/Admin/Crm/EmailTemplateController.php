@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\Crm\StoreEmailTemplateRequest;
 use App\Http\Requests\Admin\Crm\UpdateEmailTemplateRequest;
 use App\Models\EmailTemplate;
 use App\Services\BrevoService;
+use App\Services\EmailTemplateBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,12 +32,15 @@ class EmailTemplateController extends Controller
     public function store(StoreEmailTemplateRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $type = $data['template_type'] ?? EmailTemplate::TYPE_CUSTOM;
 
         EmailTemplate::create([
             'name' => $data['name'],
             'subject' => $data['subject'],
-            'html_body' => $data['html_body'],
+            'html_body' => $type === EmailTemplate::TYPE_CUSTOM ? ($data['html_body'] ?? '') : null,
             'preview_text' => $data['preview_text'] ?? null,
+            'template_type' => $type,
+            'template_settings' => $data['template_settings'] ?? null,
             'is_active' => true,
             'created_by' => session('admin_id'),
         ]);
@@ -52,7 +56,15 @@ class EmailTemplateController extends Controller
 
     public function update(UpdateEmailTemplateRequest $request, EmailTemplate $template): RedirectResponse
     {
-        $template->update($request->validated());
+        $data = $request->validated();
+
+        $template->update([
+            'name' => $data['name'],
+            'subject' => $data['subject'],
+            'html_body' => $template->isCustom() ? ($data['html_body'] ?? $template->html_body) : $template->html_body,
+            'preview_text' => $data['preview_text'] ?? null,
+            'template_settings' => $data['template_settings'] ?? $template->template_settings,
+        ]);
 
         return redirect()->route('admin.crm.templates.index')
             ->with('success', 'Template email berhasil diperbarui.');
@@ -92,7 +104,7 @@ class EmailTemplateController extends Controller
 
         $paramSection = $paramLines !== ''
             ? "PARAMETER DINAMIS YANG HARUS ADA DI HTML:\n{$paramLines}"
-            : 'PARAMETER DINAMIS: Tentukan sendiri parameter yang relevan sesuai tujuan email.';
+            : 'PARAMETER DINAMIS: Gunakan hanya {{name}} untuk nama penerima. Semua konten lainnya bersifat statis.';
 
         $appUrl = config('app.url');
 
@@ -106,16 +118,15 @@ TUJUAN EMAIL:
 {$paramSection}
 
 ATURAN WAJIB (EMAIL CLIENT COMPATIBILITY):
-1. Gunakan merge tag format {{nama_parameter}} (dua kurung kurawal) untuk nilai dinamis. Contoh: {{name}}, {{email}}, {{story_title}}.
+1. Gunakan merge tag format {{nama_parameter}} (dua kurung kurawal) untuk nilai dinamis. Contoh: {{name}}.
 2. DILARANG: display:flex, display:grid, CSS transitions, CSS animations, -webkit-line-clamp. Gmail tidak mendukungnya.
 3. Untuk layout multi-kolom atau centering elemen: WAJIB gunakan <table cellpadding="0" cellspacing="0">.
-4. Untuk gambar cerita (story_cover): gunakan <img> di dalam <td style="text-align:center"> dengan width="200" style="display:block;margin:0 auto;max-width:100%;height:auto;border-radius:8px".
-5. Semua CSS properti penting harus ada sebagai INLINE STYLE (bukan hanya di <style> tag), terutama pada <img>, <a>, <td>, dan elemen kunci.
-6. Warna brand Novelya: primary #7c3aed (violet), secondary #a78bfa (light violet), background putih/abu muda.
-7. Sertakan logo/nama "Novelya" di header dengan background gradient violet dan link {$appUrl} di footer.
-8. Tone: hangat, personal, dalam Bahasa Indonesia.
-9. Jangan gunakan JavaScript.
-10. Max-width wrapper: 600px, menggunakan <table width="100%"> sebagai outer wrapper.
+4. Semua CSS properti penting harus ada sebagai INLINE STYLE (bukan hanya di <style> tag).
+5. Warna brand Novelya: primary #7c3aed (violet), secondary #a78bfa (light violet), background putih/abu muda.
+6. Sertakan logo/nama "Novelya" di header dengan background gradient violet dan link {$appUrl} di footer.
+7. Tone: hangat, personal, dalam Bahasa Indonesia.
+8. Jangan gunakan JavaScript.
+9. Max-width wrapper: 600px, menggunakan <table width="100%"> sebagai outer wrapper.
 
 OUTPUT WAJIB — balas HANYA dengan JSON object berikut (tanpa markdown code fence, tanpa teks lain):
 {
@@ -166,9 +177,21 @@ PROMPT;
 
     public function previewHtml(Request $request): Response
     {
+        $type = $request->input('template_type', EmailTemplate::TYPE_CUSTOM);
+
+        if ($type !== EmailTemplate::TYPE_CUSTOM) {
+            // Built-in: generate sample HTML from builder
+            $fakeTemplate = new EmailTemplate([
+                'template_type' => $type,
+                'template_settings' => $request->input('template_settings', []),
+            ]);
+            $html = app(EmailTemplateBuilder::class)->sampleHtml($fakeTemplate);
+
+            return response($html, 200, ['Content-Type' => 'text/html']);
+        }
+
         $html = $request->input('html_body', '');
-        $brevo = app(BrevoService::class);
-        $rendered = $brevo->renderTemplate($html, [
+        $rendered = app(BrevoService::class)->renderTemplate($html, [
             'name' => 'Budi Santoso',
             'email' => 'budi@example.com',
             'expiry_date' => now()->addDays(7)->format('d M Y'),
@@ -176,14 +199,13 @@ PROMPT;
             'app_url' => config('brevo.novelya_url', config('app.url')),
             'story_title' => 'Cinta di Balik Hujan',
             'story_cover' => 'https://placehold.co/300x400/7c3aed/ffffff?text=Cover',
-            'story_synopsis' => 'Sebuah kisah cinta yang mengharukan antara dua jiwa yang dipertemukan oleh takdir pada malam hujan yang tak terlupakan...',
+            'story_synopsis' => 'Sebuah kisah cinta yang mengharukan antara dua jiwa yang dipertemukan oleh takdir...',
             'story_url' => config('brevo.novelya_url', 'https://novelya.id').'/detail/demo',
             'invoice_url' => config('brevo.novelya_url', 'https://novelya.id').'/payment/demo',
             'payment_status' => 'pending',
             'join_date' => now()->subDays(30)->format('d M Y'),
             'last_paid' => now()->subDays(90)->format('d M Y'),
             'trx_count' => '3',
-            'paid_at' => now()->subDays(1)->format('d M Y H:i'),
         ]);
 
         return response($rendered, 200, ['Content-Type' => 'text/html']);
@@ -191,8 +213,13 @@ PROMPT;
 
     public function preview(Request $request, EmailTemplate $template): Response
     {
-        $brevo = app(BrevoService::class);
-        $rendered = $brevo->renderTemplate($template->html_body, [
+        if ($template->isBuiltIn()) {
+            $html = app(EmailTemplateBuilder::class)->sampleHtml($template);
+
+            return response($html, 200, ['Content-Type' => 'text/html']);
+        }
+
+        $rendered = app(BrevoService::class)->renderTemplate($template->html_body ?? '', [
             'name' => $request->query('name', 'Pengguna Demo'),
             'email' => $request->query('email', 'demo@novelya.id'),
             'expiry_date' => now()->addDays(7)->format('d M Y'),

@@ -19,6 +19,7 @@
         <thead>
             <tr class="border-b border-slate-100 dark:border-white/[0.05]">
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Nama Template</th>
+                <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tipe</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Subject</th>
                 <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Campaigns</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Dibuat</th>
@@ -33,6 +34,19 @@
                     @if($template->preview_text)
                         <div class="text-slate-400 text-[11px] mt-0.5 truncate max-w-xs">{{ $template->preview_text }}</div>
                     @endif
+                </td>
+                <td class="px-5 py-3">
+                    @php
+                        $badgeClass = match($template->template_type) {
+                            \App\Models\EmailTemplate::TYPE_STORY_RECOMMENDATION => 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
+                            \App\Models\EmailTemplate::TYPE_PAYMENT_REMINDER     => 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+                            \App\Models\EmailTemplate::TYPE_PROMO                => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+                            default                                               => 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400',
+                        };
+                    @endphp
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $badgeClass }}">
+                        {{ \App\Models\EmailTemplate::TYPE_LABELS[$template->template_type] ?? $template->template_type }}
+                    </span>
                 </td>
                 <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-300 max-w-xs truncate">{{ $template->subject }}</td>
                 <td class="px-5 py-3 text-center font-mono text-xs text-slate-600 dark:text-slate-300">{{ $template->campaigns_count }}</td>
@@ -67,7 +81,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada template email. <a href="{{ route('admin.crm.templates.create') }}" class="text-blue-500 hover:underline">Buat sekarang</a>.</td>
+                <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">Belum ada template email. <a href="{{ route('admin.crm.templates.create') }}" class="text-blue-500 hover:underline">Buat sekarang</a>.</td>
             </tr>
             @endforelse
         </tbody>
