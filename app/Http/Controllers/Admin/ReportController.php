@@ -1142,7 +1142,7 @@ class ReportController extends Controller
 
         if (empty($cats)) {
             $recs = $db->select('
-                SELECT c.title, c.slug, c.synopsis, mcc.name AS category
+                SELECT c.title, c.slug, c.synopsis, c.cover_image, mcc.name AS category
                 FROM content c
                 LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
                 WHERE c.is_published = 1 AND c.is_deleted = 0
@@ -1162,7 +1162,7 @@ class ReportController extends Controller
                 $catParams[] = $cat->id;
             }
             $recs = $db->select("
-                SELECT c.title, c.slug, c.synopsis, mcc.name AS category
+                SELECT c.title, c.slug, c.synopsis, c.cover_image, mcc.name AS category
                 FROM content c
                 LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
                 WHERE c.is_published = 1 AND c.is_deleted = 0
@@ -1206,6 +1206,7 @@ class ReportController extends Controller
             $title = htmlspecialchars($rec->title ?? '', ENT_QUOTES, 'UTF-8');
             $category = htmlspecialchars($rec->category ?? '', ENT_QUOTES, 'UTF-8');
             $url = $novelyaUrl.'/detail/'.($rec->slug ?? '');
+            $coverUrl = ! empty($rec->cover_image) ? htmlspecialchars($rec->cover_image, ENT_QUOTES, 'UTF-8') : '';
             $synopsis = '';
             if (! empty($rec->synopsis)) {
                 $text = mb_strlen($rec->synopsis) > 160
@@ -1218,6 +1219,9 @@ class ReportController extends Controller
             $catBadge = $category
                 ? "<p style=\"margin:6px 0 0;\"><span style=\"font-size:11px;font-weight:700;color:{$c1};background:#f5f3ff;padding:3px 10px;border-radius:20px;font-family:sans-serif;\">{$category}</span></p>"
                 : '';
+            $coverCell = $coverUrl
+                ? "<td width=\"100\" valign=\"top\" style=\"padding-right:18px;\"><a href=\"{$url}\"><img src=\"{$coverUrl}\" width=\"90\" alt=\"\" style=\"display:block;width:90px;height:130px;object-fit:cover;border-radius:10px;border:0;\"></a></td>"
+                : "<td width=\"44\" valign=\"top\" style=\"padding-right:14px;\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td width=\"36\" height=\"36\" align=\"center\" valign=\"middle\" style=\"width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,{$c1},{$c2});color:#ffffff;font-size:18px;font-weight:800;font-family:sans-serif;text-align:center;\">{$num}</td></tr></table></td>";
 
             $storyCards .= <<<CARD
 <tr>
@@ -1227,16 +1231,8 @@ class ReportController extends Controller
         <td style="padding:20px 22px;">
           <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
-              <td width="44" valign="top">
-                <table cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td width="36" height="36" align="center" valign="middle" style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,{$c1},{$c2});color:#ffffff;font-size:18px;font-weight:800;font-family:sans-serif;text-align:center;">
-                      {$num}
-                    </td>
-                  </tr>
-                </table>
-              </td>
-              <td valign="top" style="padding-left:14px;">
+              {$coverCell}
+              <td valign="top">
                 <p style="margin:0;font-size:17px;font-weight:700;color:#111827;line-height:1.3;font-family:sans-serif;">{$title}</p>
                 {$catBadge}
                 {$synopsis}
@@ -1282,8 +1278,8 @@ CARD;
 
         <tr>
           <td style="background:#ffffff;padding:28px 40px 12px;">
-            <p style="margin:0;font-size:15px;color:#374151;line-height:1.75;font-family:sans-serif;">
-              Sistem rekomendasi AI Novelya telah menganalisis riwayat bacaanmu dan menemukan cerita-cerita yang paling sesuai dengan seleramu. Jangan sampai kamu melewatkan cerita seru ini!
+            <p style="margin:0;font-size:15px;color:#374151;line-height:1.8;font-family:sans-serif;">
+              Kami tahu kamu sibuk, tapi percaya deh &mdash; cerita-cerita di bawah ini worth banget buat dibaca. Dipilihkan khusus berdasarkan selera bacaanmu, jadi kemungkinan besar bakal langsung bikin ketagihan! &#128522;
             </p>
           </td>
         </tr>
