@@ -129,20 +129,67 @@
             Isi HTML Email <span class="text-red-500">*</span>
         </label>
         <div class="flex items-center gap-2">
+            <button type="button" id="btn-toggle-preview"
+                class="h-7 px-2.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                Live Preview
+            </button>
             <button type="button" onclick="openTemplatePreview()"
                 class="h-7 px-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/30 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-colors">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                Preview
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Popup
             </button>
             <span class="text-[11px] text-slate-400">Merge tags: <code class="font-mono text-blue-500">@{{name}} @{{email}} @{{expiry_date}}</code></span>
         </div>
     </div>
-    <textarea id="field_html_body" name="html_body" rows="16" required placeholder="<html>...</html>"
-        class="block w-full px-3.5 py-2.5 text-sm font-mono rounded-xl outline-none transition-all duration-150 bg-slate-50 dark:bg-white/[0.04] border text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 {{ $errors->has('html_body') ? 'border-red-400' : 'border-slate-200 dark:border-white/[0.08]' }}">{{ old('html_body', $template->html_body ?? '') }}</textarea>
-    @error('html_body')<p class="mt-1.5 text-xs text-red-500">{{ $message }}</p>@enderror
+
+    {{-- Split pane wrapper --}}
+    <div id="editor-pane-wrapper" class="flex gap-3 items-stretch">
+
+        {{-- Kiri: CodeMirror editor --}}
+        <div id="editor-pane" class="flex-1 min-w-0">
+            <textarea id="field_html_body" name="html_body" required placeholder="<html>...</html>"
+                class="hidden {{ $errors->has('html_body') ? 'border-red-400' : '' }}">{{ old('html_body', $template->html_body ?? '') }}</textarea>
+            <div id="cm-editor-mount"
+                class="rounded-xl border {{ $errors->has('html_body') ? 'border-red-400' : 'border-slate-200 dark:border-white/[0.08]' }} overflow-hidden"
+                style="height: 480px;"></div>
+            @error('html_body')<p class="mt-1.5 text-xs text-red-500">{{ $message }}</p>@enderror
+        </div>
+
+        {{-- Kanan: live preview iframe --}}
+        <div id="preview-pane" class="hidden flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-white/[0.08] overflow-hidden bg-white" style="height: 480px;">
+            <div class="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200 text-[11px] text-slate-400 shrink-0">
+                <span>Preview (data test)</span>
+                <span class="text-violet-500 font-medium">✏ Klik elemen untuk edit langsung</span>
+            </div>
+            <div id="preview-loading" class="hidden items-center justify-center gap-2 text-xs text-slate-400" style="height: 448px;">
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Memuat preview...
+            </div>
+            <iframe id="preview-iframe" class="w-full border-0" style="height: 448px;" sandbox="allow-same-origin"></iframe>
+        </div>
+
+    </div>
 </div>
 
 @push('head-scripts')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/htmlmixed/htmlmixed.min.js"></script>
+<style>
+#cm-editor-mount .CodeMirror {
+    height: 480px;
+    font-family: 'Fira Code', 'Fira Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+#cm-editor-mount .CodeMirror-scroll {
+    height: 480px;
+}
+.cm-highlight-line { background: rgba(124, 58, 237, 0.18) !important; transition: background 0.4s; }
+</style>
 <script>window._crmRoutes = window._crmRoutes || {}; window._crmRoutes.aiGenerate = '{{ route('admin.crm.templates.ai-generate') }}'; window._crmRoutes.previewHtml = '{{ route('admin.crm.templates.preview-html') }}';</script>
-<script src="{{ asset('js/crm-template-form.js') }}"></script>
+<script src="{{ asset('js/crm-template-form.js') }}?v={{ filemtime(public_path('js/crm-template-form.js')) }}"></script>
 @endpush

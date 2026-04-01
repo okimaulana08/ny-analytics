@@ -3,7 +3,7 @@
 @section('page-title', 'Edit Template Email')
 
 @section('content')
-<div class="max-w-4xl">
+<div class="max-w-7xl">
     <a href="{{ route('admin.crm.templates.index') }}"
         class="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-5 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
