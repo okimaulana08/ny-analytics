@@ -129,7 +129,11 @@
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
                 <h2 class="font-mono text-sm font-semibold text-slate-800 dark:text-white">Semua Konten Publish</h2>
-                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{{ number_format($total) }} konten{{ $author ? ' — filter: "'.e($author).'"' : '' }}</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    {{ number_format($total) }} konten
+                    @if($title) <span class="text-blue-500">· judul: "{{ e($title) }}"</span> @endif
+                    @if($author) <span class="text-blue-500">· penulis: "{{ e($author) }}"</span> @endif
+                </p>
             </div>
             {{-- Sort tabs --}}
             <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/[0.04]">
@@ -141,16 +145,23 @@
                 @endforeach
             </div>
         </div>
-        {{-- Author filter --}}
-        <form method="GET" action="{{ route('admin.reports.content') }}" class="flex items-center gap-2">
+        {{-- Filter form: Judul + Penulis --}}
+        <form method="GET" action="{{ route('admin.reports.content') }}" class="flex flex-wrap items-center gap-2">
             <input type="hidden" name="sort" value="{{ $sort }}">
+            {{-- Title search --}}
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" name="title" value="{{ $title }}" placeholder="Cari judul..."
+                    class="h-9 pl-9 pr-3.5 text-xs rounded-xl outline-none bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 w-48">
+            </div>
+            {{-- Author search --}}
             <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                <input type="text" name="author" value="{{ $author }}" placeholder="Filter by penulis..."
-                    class="h-9 pl-9 pr-3.5 text-xs rounded-xl outline-none bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 w-56">
+                <input type="text" name="author" value="{{ $author }}" placeholder="Filter penulis..."
+                    class="h-9 pl-9 pr-3.5 text-xs rounded-xl outline-none bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 w-44">
             </div>
             <button type="submit" class="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors">Cari</button>
-            @if($author)
+            @if($title || $author)
             <a href="{{ route('admin.reports.content', ['sort' => $sort]) }}" class="h-9 px-3 flex items-center text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 Reset
@@ -167,10 +178,8 @@
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Kategori</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ch</th>
                 <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Reads</th>
-                <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">30h</th>
                 <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Views</th>
                 <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sub</th>
-                <th class="px-4 py-3 text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Conv%</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Publish</th>
                 <th class="px-4 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Aksi</th>
@@ -186,15 +195,9 @@
                 <td class="px-5 py-3 text-[11px] text-slate-500 whitespace-nowrap">{{ $c->category ?? '—' }}</td>
                 <td class="px-4 py-3 text-center font-mono text-xs text-slate-500">{{ $c->chapter_count }}</td>
                 <td class="px-4 py-3 text-right font-mono text-xs font-semibold text-teal-600 dark:text-teal-400">{{ number_format($c->read_count) }}</td>
-                <td class="px-4 py-3 text-right font-mono text-[11px] {{ ($c->reads_30d ?? 0) > 0 ? 'text-teal-500' : 'text-slate-300 dark:text-slate-600' }}">
-                    {{ ($c->reads_30d ?? 0) > 0 ? number_format($c->reads_30d) : '—' }}
-                </td>
                 <td class="px-4 py-3 text-right font-mono text-xs text-blue-600 dark:text-blue-400">{{ number_format($c->view_count) }}</td>
                 <td class="px-4 py-3 text-right font-mono text-xs font-semibold {{ $c->subscribe_count > 0 ? 'text-violet-600 dark:text-violet-400' : 'text-slate-300 dark:text-slate-600' }}">
                     {{ $c->subscribe_count > 0 ? $c->subscribe_count : '—' }}
-                </td>
-                <td class="px-4 py-3 text-right font-mono text-[11px] {{ ($c->convert_rate ?? 0) > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-300 dark:text-slate-600' }}">
-                    {{ ($c->convert_rate ?? 0) > 0 ? $c->convert_rate . '%' : '—' }}
                 </td>
                 <td class="px-4 py-3 text-center">
                     @if($c->is_completed)
@@ -207,16 +210,23 @@
                     {{ $c->published_at ? \Carbon\Carbon::parse($c->published_at)->format('d M Y') : '—' }}
                 </td>
                 <td class="px-4 py-3 text-center">
-                    <button type="button"
-                        onclick="window.dispatchEvent(new CustomEvent('open-readers', { detail: { id: '{{ $c->id }}', title: {{ json_encode($c->title) }} } }))"
-                        class="h-7 px-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-500/30 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors whitespace-nowrap">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        Pembaca
-                    </button>
+                    <div class="inline-flex items-center gap-1.5">
+                        <button type="button"
+                            onclick="window.dispatchEvent(new CustomEvent('open-readers', { detail: { id: '{{ $c->id }}', title: {{ json_encode($c->title) }} } }))"
+                            class="h-7 px-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-500/30 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors whitespace-nowrap">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            Pembaca
+                        </button>
+                        <a href="{{ route('admin.reports.content.pdf', $c->id) }}" target="_blank"
+                            class="h-7 px-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors whitespace-nowrap">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            PDF
+                        </a>
+                    </div>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="11" class="px-5 py-12 text-center text-sm text-slate-400">Tidak ada konten.</td></tr>
+            <tr><td colspan="9" class="px-5 py-12 text-center text-sm text-slate-400">Tidak ada konten.</td></tr>
             @endforelse
         </tbody>
     </table>

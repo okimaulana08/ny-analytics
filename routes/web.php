@@ -42,6 +42,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::get('/reports/user-activity', [ReportController::class, 'userActivity'])->name('reports.user-activity');
     Route::get('/reports/content', [ReportController::class, 'contentAnalytics'])->name('reports.content');
     Route::get('/reports/content/readers/{contentId}', [ReportController::class, 'contentReaders'])->name('reports.content.readers');
+    Route::get('/reports/content/{contentId}/pdf', [ReportController::class, 'contentPdf'])->name('reports.content.pdf');
     Route::get('/reports/acquisition', [ReportController::class, 'acquisition'])->name('reports.acquisition');
     Route::get('/reports/revenue-daily', [ReportController::class, 'revenueDaily'])->name('reports.revenue-daily');
     Route::post('/reports/revenue-daily/cost', [ReportController::class, 'saveMarketingCost'])->name('reports.revenue-daily.cost');

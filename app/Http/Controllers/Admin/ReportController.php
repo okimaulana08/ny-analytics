@@ -605,6 +605,7 @@ class ReportController extends Controller
         // Top content table (paginated + filtered)
         $sort = $request->query('sort', 'reads');
         $author = trim($request->query('author', ''));
+        $title  = trim($request->query('title', ''));
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
         $offset = ($page - 1) * $perPage;
@@ -617,20 +618,24 @@ class ReportController extends Controller
         ];
         $orderSql = $orderMap[$sort] ?? $orderMap['reads'];
 
-        $authorWhere = '';
-        $authorParam = [];
+        $filterWhere = '';
+        $filterParam = [];
+        if ($title !== '') {
+            $filterWhere .= ' AND c.title LIKE ?';
+            $filterParam[] = '%'.$title.'%';
+        }
         if ($author !== '') {
-            $authorWhere = 'AND u.name LIKE ?';
-            $authorParam = ['%'.$author.'%'];
+            $filterWhere .= ' AND u.name LIKE ?';
+            $filterParam[] = '%'.$author.'%';
         }
 
         $countSql = "
             SELECT COUNT(*) AS cnt
             FROM content c
             LEFT JOIN users u ON u.id = c.user_id
-            WHERE c.is_published=1 AND c.is_deleted=0 {$authorWhere}
+            WHERE c.is_published=1 AND c.is_deleted=0 {$filterWhere}
         ";
-        $total = $db->selectOne($countSql, $authorParam)->cnt;
+        $total = $db->selectOne($countSql, $filterParam)->cnt;
         $totalPages = (int) ceil($total / $perPage);
 
         $contents = $db->select("
@@ -654,10 +659,10 @@ class ReportController extends Controller
                 SELECT content_id, AVG(sequence) AS avg_ch FROM chapters
                 WHERE is_published=1 AND is_deleted=0 GROUP BY content_id
             ) chapter_counts ON chapter_counts.content_id = c.id
-            WHERE c.is_published=1 AND c.is_deleted=0 {$authorWhere}
+            WHERE c.is_published=1 AND c.is_deleted=0 {$filterWhere}
             ORDER BY {$orderSql}
             LIMIT {$perPage} OFFSET {$offset}
-        ", $authorParam);
+        ", $filterParam);
 
         // Top 5 by subscribe (for highlight cards)
         $topBySubscribe = $db->select('
@@ -671,7 +676,7 @@ class ReportController extends Controller
         return view('admin.reports.content', compact(
             'kpi', 'byCategory', 'trend30d', 'contents',
             'page', 'perPage', 'total', 'totalPages', 'sort',
-            'topBySubscribe', 'author'
+            'topBySubscribe', 'author', 'title'
         ));
     }
 
@@ -707,6 +712,30 @@ class ReportController extends Controller
                 'read_count' => (int) $r->read_count,
             ], $readers),
         ]);
+    }
+
+    public function contentPdf(string $contentId): \Illuminate\View\View|\Illuminate\Http\Response
+    {
+        $db = $this->db();
+
+        $content = $db->selectOne(
+            'SELECT id, title, synopsis, is_completed, published_at FROM content WHERE id = ? AND is_published=1 AND is_deleted=0',
+            [$contentId]
+        );
+
+        if (! $content) {
+            abort(404, 'Konten tidak ditemukan.');
+        }
+
+        $chapters = $db->select(
+            'SELECT sequence, title, body FROM chapters
+             WHERE content_id = ? AND is_published = 1 AND is_deleted = 0
+             ORDER BY sequence ASC',
+            [$contentId]
+        );
+
+        return response()->view('admin.reports.content-pdf', compact('content', 'chapters'))
+            ->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
     // ── Acquisition & Referral ───────────────────────────────────────────────
