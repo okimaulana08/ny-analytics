@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Admin\AdminActivityLogController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AppConfigController;
 use App\Http\Controllers\Admin\AssistantController;
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\CommunicationLogController;
 use App\Http\Controllers\Admin\Crm\BroadcastEmailController;
 use App\Http\Controllers\Admin\Crm\CampaignHistoryController;
 use App\Http\Controllers\Admin\Crm\EmailGroupController;
@@ -11,6 +13,7 @@ use App\Http\Controllers\Admin\Crm\EmailTemplateController;
 use App\Http\Controllers\Admin\Crm\EmailTriggerController;
 use App\Http\Controllers\Admin\Crm\IndividualEmailController;
 use App\Http\Controllers\Admin\Crm\ScheduledReportController;
+use App\Http\Controllers\Admin\Crm\WaTriggerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\ReportController;
@@ -103,10 +106,18 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
         // Scheduled Reports
         Route::post('/scheduled-reports/{scheduledReport}/send-now', [ScheduledReportController::class, 'sendNow'])->name('scheduled-reports.send-now');
         Route::resource('scheduled-reports', ScheduledReportController::class)->except(['show']);
+
+        // WA Triggers
+        Route::patch('/wa-triggers/{waTrigger}/toggle', [WaTriggerController::class, 'toggle'])->name('wa-triggers.toggle');
+        Route::resource('wa-triggers', WaTriggerController::class)->except(['show']);
     });
 
     Route::get('/reports/content/{contentId}/chapter-funnel', [ReportController::class, 'chapterFunnel'])->name('reports.content.chapter-funnel');
 
     Route::get('/release-notes', [ReleaseNoteController::class, 'index'])->name('release-notes');
     Route::get('/activity-logs', [AdminActivityLogController::class, 'index'])->name('activity-logs');
+    Route::get('/communication-logs', [CommunicationLogController::class, 'index'])->name('communication-logs');
+    Route::get('/communication-logs/frequency', [CommunicationLogController::class, 'frequencyMonitor'])->name('communication-logs.frequency');
+    Route::get('/system-config', [AppConfigController::class, 'index'])->name('system-config');
+    Route::patch('/system-config/{config}', [AppConfigController::class, 'update'])->name('system-config.update');
 });

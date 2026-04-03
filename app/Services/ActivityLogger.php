@@ -64,6 +64,15 @@ class ActivityLogger
 
         // User Recommend
         'admin.reports.user-recommend.send-email' => ['User Recommend', 'Send'],
+
+        // WA Triggers
+        'admin.crm.wa-triggers.store' => ['WA Triggers', 'Create'],
+        'admin.crm.wa-triggers.update' => ['WA Triggers', 'Update'],
+        'admin.crm.wa-triggers.destroy' => ['WA Triggers', 'Delete'],
+        'admin.crm.wa-triggers.toggle' => ['WA Triggers', 'Toggle'],
+
+        // System Config
+        'admin.system-config.update' => ['System Config', 'Update'],
     ];
 
     /** Fields to strip from payload for security/privacy. */

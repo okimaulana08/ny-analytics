@@ -40,3 +40,11 @@ Schedule::command('reports:send-scheduled')
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+// WA triggers - every 5 minutes
+Schedule::command('wa:run-triggers')
+    ->everyFiveMinutes()
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));

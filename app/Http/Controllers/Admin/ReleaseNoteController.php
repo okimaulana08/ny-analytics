@@ -19,9 +19,90 @@ class ReleaseNoteController extends Controller
     {
         return [
             [
+                'version' => 'v1.9',
+                'date' => '2026-04-04',
+                'tag' => 'latest',
+                'title' => 'System Config',
+                'features' => [
+                    [
+                        'name' => 'System Config',
+                        'route' => 'admin.system-config',
+                        'description' => 'Halaman konfigurasi parameter bisnis non-sensitif yang bisa diedit inline langsung dari UI. Dikelompokkan per kategori: Komunikasi, Analytics & Insight, Scheduler, dan Laporan. Threshold Frequency Monitor kini membaca nilai dari sini.',
+                        'suggestions' => [
+                            'Tambah riwayat perubahan config (siapa, kapan, nilai lama vs baru)',
+                            'Wire-up InsightEngine thresholds ke config ini',
+                            'Wire-up ScheduledReportBuilder window configs',
+                            'Wire-up Scheduler times ke config ini (butuh dynamic cron)',
+                            'Support tipe boolean dengan toggle switch di UI',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'version' => 'v1.8',
+                'date' => '2026-04-04',
+                'tag' => null,
+                'title' => 'Communication Log & Frequency Monitor',
+                'features' => [
+                    [
+                        'name' => 'Communication Log',
+                        'route' => 'admin.communication-logs',
+                        'description' => 'Timeline terpadu seluruh pengiriman Email (Trigger + Broadcast) dan WA (Trigger + Notifikasi) ke user. Filter by channel, tipe, tanggal, dan search. Nama user di-enrich dari novel DB.',
+                        'suggestions' => [
+                            'Export CSV log per periode untuk audit eksternal',
+                            'Tambah kolom open/click rate untuk Email Broadcast',
+                            'Filter per trigger/campaign spesifik',
+                            'Notifikasi real-time jika ada spike pengiriman dalam 1 jam',
+                        ],
+                    ],
+                    [
+                        'name' => 'Frequency Monitor',
+                        'route' => 'admin.communication-logs.frequency',
+                        'description' => 'Per-user frequency report: berapa kali tiap user dihubungi via Email dan WA dalam 7 dan 30 hari terakhir. Row merah = over threshold, kuning = mendekati. Threshold dikonfigurasi via MAX_COMMS_7D dan MAX_COMMS_30D di .env.',
+                        'suggestions' => [
+                            'Auto-suppress trigger untuk user yang sudah over threshold',
+                            'Grafik tren frekuensi per user (sparkline 30 hari)',
+                            'Alert email ke admin harian jika ada user baru masuk over limit',
+                            'Batas threshold bisa diatur per-user untuk VIP subscriber',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'version' => 'v1.7',
+                'tag' => null,
+                'date' => '2026-04-04',
+                'tag' => 'latest',
+                'title' => 'WhatsApp Trigger Otomatis (WAHA)',
+                'features' => [
+                    [
+                        'name' => 'Trigger WA — Pending Payment',
+                        'route' => 'admin.crm.wa-triggers.index',
+                        'description' => 'Kirim WA otomatis ke user yang transaksinya masih pending setelah X menit/jam. Rotasi 10+ template pesan yang casual & human agar tidak terdeteksi spam. Cooldown per-user mencegah pesan berulang.',
+                        'suggestions' => [
+                            'Tambah tombol "Test Kirim" untuk simulasi pesan ke nomor tertentu sebelum aktifkan trigger',
+                            'Statistik per trigger: berapa yang convert setelah menerima WA reminder',
+                            'Support media (gambar/sticker) agar pesan lebih engaging',
+                            'Tambah trigger type: Welcome Payment — selamat datang setelah pertama kali bayar',
+                        ],
+                    ],
+                    [
+                        'name' => 'Trigger WA — Expiry Reminder',
+                        'route' => 'admin.crm.wa-triggers.index',
+                        'description' => 'Kirim WA otomatis X hari sebelum langganan habis. Template acak dari pool 10 variasi untuk menghindari blokir WA. Dijalankan otomatis setiap 5 menit via scheduler.',
+                        'suggestions' => [
+                            'Cascade trigger: D-7, D-3, D-1 dalam satu flow tanpa setup 3 trigger terpisah',
+                            'Include deep-link ke halaman perpanjang di dalam pesan',
+                            'Log open/click rate jika menggunakan WA Business API resmi',
+                            'Notifikasi ke admin jika WAHA session disconnect (agar trigger tidak silent fail)',
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'version' => 'v1.6',
                 'date' => '2026-04-03',
-                'tag' => 'latest',
+                'tag' => null,
                 'title' => 'Log Admin & Release Notes',
                 'features' => [
                     [

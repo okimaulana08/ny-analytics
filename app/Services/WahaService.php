@@ -8,16 +8,19 @@ use Illuminate\Support\Facades\Log;
 class WahaService
 {
     private string $baseUrl;
+
     private string $apiKey;
+
     private string $session;
+
     private ?string $groupId;
 
     public function __construct()
     {
-        $this->baseUrl  = rtrim(config('waha.base_url'), '/');
-        $this->apiKey   = config('waha.api_key') ?? '';
-        $this->session  = config('waha.session', 'default');
-        $this->groupId  = config('waha.group_id');
+        $this->baseUrl = rtrim(config('waha.base_url'), '/');
+        $this->apiKey = config('waha.api_key') ?? '';
+        $this->session = config('waha.session', 'default');
+        $this->groupId = config('waha.group_id');
     }
 
     /**
@@ -27,6 +30,7 @@ class WahaService
     {
         if (empty($this->groupId)) {
             Log::error('WahaService: WAHA_GROUP_ID is not configured in .env');
+
             return false;
         }
 
@@ -34,8 +38,8 @@ class WahaService
             $response = Http::withHeaders(['X-Api-Key' => $this->apiKey])
                 ->timeout(15)
                 ->post("{$this->baseUrl}/api/sendText", [
-                    'chatId'  => $this->groupId,
-                    'text'    => $text,
+                    'chatId' => $this->groupId,
+                    'text' => $text,
                     'session' => $this->session,
                 ]);
 
@@ -45,14 +49,55 @@ class WahaService
 
             Log::error('WahaService: sendText failed', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body' => $response->body(),
             ]);
+
             return false;
 
         } catch (\Exception $e) {
             Log::error('WahaService: HTTP exception in sendToGroup', [
                 'message' => $e->getMessage(),
             ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Send a text message to an individual WhatsApp user by phone number.
+     * Phone number should be in local format (e.g. 08123456789) or international without leading +.
+     */
+    public function sendToUser(string $phone, string $text): bool
+    {
+        $normalized = ltrim(preg_replace('/\D/', '', $phone), '0');
+        $chatId = "62{$normalized}@s.whatsapp.net";
+
+        try {
+            $response = Http::withHeaders(['X-Api-Key' => $this->apiKey])
+                ->timeout(15)
+                ->post("{$this->baseUrl}/api/sendText", [
+                    'chatId' => $chatId,
+                    'text' => $text,
+                    'session' => $this->session,
+                ]);
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            Log::error('WahaService: sendToUser failed', [
+                'chatId' => $chatId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return false;
+
+        } catch (\Exception $e) {
+            Log::error('WahaService: HTTP exception in sendToUser', [
+                'message' => $e->getMessage(),
+            ]);
+
             return false;
         }
     }
@@ -70,6 +115,7 @@ class WahaService
 
             if ($response->successful()) {
                 $data = $response->json();
+
                 return is_array($data) ? $data : [];
             }
 
@@ -81,20 +127,23 @@ class WahaService
             if ($response->successful()) {
                 $data = $response->json();
                 $chats = is_array($data) ? $data : [];
+
                 // Filter only group chats (id ends with @g.us)
-                return array_filter($chats, fn($c) => str_ends_with($c['id'] ?? '', '@g.us'));
+                return array_filter($chats, fn ($c) => str_ends_with($c['id'] ?? '', '@g.us'));
             }
 
             Log::error('WahaService: listGroups failed', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body' => $response->body(),
             ]);
+
             return [];
 
         } catch (\Exception $e) {
             Log::error('WahaService: HTTP exception in listGroups', [
                 'message' => $e->getMessage(),
             ]);
+
             return [];
         }
     }
