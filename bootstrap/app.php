@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AdminAuthMiddleware;
 use App\Http\Middleware\ApiKeyMiddleware;
+use App\Http\Middleware\LogAdminActivityMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.key' => ApiKeyMiddleware::class,
             'admin.auth' => AdminAuthMiddleware::class,
+            'admin.log' => LogAdminActivityMiddleware::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

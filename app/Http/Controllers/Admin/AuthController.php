@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
+use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,7 +23,7 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $request->validate([
-            'email'    => 'required|email',
+            'email' => 'required|email',
             'password' => 'required|min:6',
         ]);
 
@@ -30,11 +31,17 @@ class AuthController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$user || !$user->checkPassword($request->password)) {
+        if (! $user || ! $user->checkPassword($request->password)) {
             return back()->withErrors(['email' => 'Email atau password salah.'])->withInput();
         }
 
         session(['admin_user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]]);
+
+        try {
+            ActivityLogger::login($request, $user->id, $user->name, $user->email);
+        } catch (\Throwable) {
+            // Never crash on logging failure
+        }
 
         return redirect()->route('admin.dashboard');
     }

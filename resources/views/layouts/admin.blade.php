@@ -87,6 +87,10 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
         .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+        /* Fix select + option readability in dark mode */
+        .dark select { background-color: #1e293b !important; color: #f1f5f9; }
+        .dark select option { background-color: #1e293b; color: #f1f5f9; }
     </style>
 </head>
 <body class="h-full bg-slate-100 dark:bg-[#0d0f14] text-slate-900 dark:text-slate-100 transition-colors duration-300">
@@ -291,6 +295,22 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
                 Scheduled Reports
+            </a>
+
+            <div class="text-white/20 text-[10px] font-semibold px-3 py-2 mt-3 uppercase tracking-widest">Developers</div>
+
+            <a href="{{ route('admin.activity-logs') }}" class="nav-link {{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Log Admin
+            </a>
+
+            <a href="{{ route('admin.release-notes') }}" class="nav-link {{ request()->routeIs('admin.release-notes') ? 'active' : '' }}">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+                Release Notes
             </a>
         </nav>
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminActivityLogController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AssistantController;
 use App\Http\Controllers\Admin\AuthController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Admin\Crm\EmailTriggerController;
 use App\Http\Controllers\Admin\Crm\IndividualEmailController;
 use App\Http\Controllers\Admin\Crm\ScheduledReportController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\BrevoWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -26,7 +28,7 @@ Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.log
 Route::post('/webhooks/brevo', [BrevoWebhookController::class, 'handle'])->name('webhooks.brevo');
 
 // Protected admin routes
-Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
@@ -104,4 +106,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     });
 
     Route::get('/reports/content/{contentId}/chapter-funnel', [ReportController::class, 'chapterFunnel'])->name('reports.content.chapter-funnel');
+
+    Route::get('/release-notes', [ReleaseNoteController::class, 'index'])->name('release-notes');
+    Route::get('/activity-logs', [AdminActivityLogController::class, 'index'])->name('activity-logs');
 });
