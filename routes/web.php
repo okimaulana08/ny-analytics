@@ -7,7 +7,9 @@ use App\Http\Controllers\Admin\Crm\BroadcastEmailController;
 use App\Http\Controllers\Admin\Crm\CampaignHistoryController;
 use App\Http\Controllers\Admin\Crm\EmailGroupController;
 use App\Http\Controllers\Admin\Crm\EmailTemplateController;
+use App\Http\Controllers\Admin\Crm\EmailTriggerController;
 use App\Http\Controllers\Admin\Crm\IndividualEmailController;
+use App\Http\Controllers\Admin\Crm\ScheduledReportController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\BrevoWebhookController;
@@ -40,7 +42,14 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::get('/reports/users', [ReportController::class, 'userList'])->name('reports.users');
     Route::get('/reports/realtime', [ReportController::class, 'realtime'])->name('reports.realtime');
     Route::get('/reports/user-activity', [ReportController::class, 'userActivity'])->name('reports.user-activity');
+    Route::get('/reports/user-journey', [ReportController::class, 'userJourney'])->name('reports.user-journey');
+    Route::get('/reports/authors', [ReportController::class, 'authorAnalytics'])->name('reports.authors');
+    Route::get('/reports/authors/{userId}', [ReportController::class, 'authorDetail'])->name('reports.authors.detail');
+    Route::get('/reports/revenue-forecast', [ReportController::class, 'revenueForecast'])->name('reports.revenue-forecast');
+    Route::post('/reports/revenue-forecast/ai', [ReportController::class, 'revenueForecastAi'])->name('reports.revenue-forecast.ai');
     Route::get('/reports/content', [ReportController::class, 'contentAnalytics'])->name('reports.content');
+    Route::get('/reports/content/search', [ReportController::class, 'contentSearch'])->name('reports.content.search');
+    Route::get('/reports/chapter-dropoff', [ReportController::class, 'chapterDropoff'])->name('reports.chapter-dropoff');
     Route::get('/reports/content/readers/{contentId}', [ReportController::class, 'contentReaders'])->name('reports.content.readers');
     Route::get('/reports/content/{contentId}/pdf', [ReportController::class, 'contentPdf'])->name('reports.content.pdf');
     Route::get('/reports/acquisition', [ReportController::class, 'acquisition'])->name('reports.acquisition');
@@ -84,5 +93,15 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
         Route::get('/campaigns/{campaign}', [CampaignHistoryController::class, 'show'])->name('campaigns.show');
         Route::post('/campaigns/{campaign}/resend', [CampaignHistoryController::class, 'resend'])->name('campaigns.resend');
         Route::delete('/campaigns/{campaign}', [CampaignHistoryController::class, 'destroy'])->name('campaigns.destroy');
+
+        // Email Triggers
+        Route::patch('/triggers/{trigger}/toggle', [EmailTriggerController::class, 'toggle'])->name('triggers.toggle');
+        Route::resource('triggers', EmailTriggerController::class)->except(['show']);
+
+        // Scheduled Reports
+        Route::post('/scheduled-reports/{scheduledReport}/send-now', [ScheduledReportController::class, 'sendNow'])->name('scheduled-reports.send-now');
+        Route::resource('scheduled-reports', ScheduledReportController::class)->except(['show']);
     });
+
+    Route::get('/reports/content/{contentId}/chapter-funnel', [ReportController::class, 'chapterFunnel'])->name('reports.content.chapter-funnel');
 });

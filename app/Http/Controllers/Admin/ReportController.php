@@ -9,7 +9,9 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 
 class ReportController extends Controller
@@ -605,7 +607,7 @@ class ReportController extends Controller
         // Top content table (paginated + filtered)
         $sort = $request->query('sort', 'reads');
         $author = trim($request->query('author', ''));
-        $title  = trim($request->query('title', ''));
+        $title = trim($request->query('title', ''));
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
         $offset = ($page - 1) * $perPage;
@@ -680,6 +682,25 @@ class ReportController extends Controller
         ));
     }
 
+    public function contentSearch(Request $request): JsonResponse
+    {
+        $q = trim($request->query('q', ''));
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $items = $this->db()->select('
+            SELECT c.id, c.title,
+                   (SELECT COUNT(*) FROM chapters ch WHERE ch.content_id = c.id AND ch.is_published=1 AND ch.is_deleted=0) AS chapter_count
+            FROM content c
+            WHERE c.is_published=1 AND c.is_deleted=0 AND c.title LIKE ?
+            ORDER BY c.read_count DESC
+            LIMIT 10
+        ', ['%'.$q.'%']);
+
+        return response()->json($items);
+    }
+
     public function contentReaders(Request $request, string $contentId): JsonResponse
     {
         $db = $this->db();
@@ -714,7 +735,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function contentPdf(string $contentId): \Illuminate\View\View|\Illuminate\Http\Response
+    public function contentPdf(string $contentId): View|Response
     {
         $db = $this->db();
 
@@ -736,6 +757,69 @@ class ReportController extends Controller
 
         return response()->view('admin.reports.content-pdf', compact('content', 'chapters'))
             ->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    public function chapterDropoff(): View
+    {
+        return view('admin.reports.chapter-dropoff');
+    }
+
+    public function chapterFunnel(string $contentId): JsonResponse
+    {
+        $db = $this->db();
+
+        $content = $db->selectOne(
+            'SELECT id, title FROM content WHERE id = ? AND is_published = 1 AND is_deleted = 0',
+            [$contentId]
+        );
+
+        if (! $content) {
+            return response()->json(['error' => 'Konten tidak ditemukan.'], 404);
+        }
+
+        $chapters = $db->select(
+            'SELECT sequence, title, read_count
+             FROM chapters
+             WHERE content_id = ? AND is_published = 1 AND is_deleted = 0
+             ORDER BY sequence ASC',
+            [$contentId]
+        );
+
+        if (empty($chapters)) {
+            return response()->json([
+                'content' => ['id' => $content->id, 'title' => $content->title, 'total_chapters' => 0],
+                'chapters' => [],
+            ]);
+        }
+
+        $firstCount = (int) $chapters[0]->read_count;
+        $prevCount = $firstCount;
+
+        $result = [];
+        foreach ($chapters as $ch) {
+            $count = (int) $ch->read_count;
+            $retentionPct = $firstCount > 0 ? round($count / $firstCount * 100, 1) : 0;
+            $dropoffPct = $prevCount > 0 ? round(($prevCount - $count) / $prevCount * 100, 1) : 0;
+
+            $result[] = [
+                'sequence' => (int) $ch->sequence,
+                'title' => $ch->title,
+                'read_count' => $count,
+                'retention_pct' => $retentionPct,
+                'dropoff_pct' => max(0, $dropoffPct),
+            ];
+
+            $prevCount = $count;
+        }
+
+        return response()->json([
+            'content' => [
+                'id' => $content->id,
+                'title' => $content->title,
+                'total_chapters' => count($chapters),
+            ],
+            'chapters' => $result,
+        ]);
     }
 
     // ── Acquisition & Referral ───────────────────────────────────────────────
@@ -1556,5 +1640,395 @@ HTML;
         $profit = $revenue - $request->cost;
 
         return response()->json(['profit' => $profit, 'revenue' => $revenue]);
+    }
+
+    // ── Author Analytics ─────────────────────────────────────────────────────
+
+    public function authorAnalytics(Request $request): View
+    {
+        $db = $this->db();
+
+        $sort = $request->query('sort', 'reads');
+        $search = trim($request->query('search', ''));
+
+        $orderMap = [
+            'reads' => 'total_reads DESC',
+            'views' => 'total_views DESC',
+            'rating' => 'avg_rating DESC',
+            'readers' => 'unique_readers DESC',
+            'content' => 'content_count DESC',
+        ];
+        $orderSql = $orderMap[$sort] ?? $orderMap['reads'];
+
+        $searchWhere = '';
+        $searchParam = [];
+        if ($search !== '') {
+            $searchWhere = ' AND u.name LIKE ?';
+            $searchParam[] = '%'.$search.'%';
+        }
+
+        $authors = $db->select("
+            SELECT
+                u.id, u.name, u.email,
+                COUNT(DISTINCT c.id)           AS content_count,
+                COALESCE(SUM(c.read_count),0)  AS total_reads,
+                COALESCE(SUM(c.view_count),0)  AS total_views,
+                COALESCE(SUM(c.subscribe_count),0) AS total_subscribes,
+                ROUND(AVG(NULLIF(c.rating, 0)), 2) AS avg_rating,
+                COUNT(DISTINCT ur.user_id)     AS unique_readers
+            FROM users u
+            JOIN content c ON c.user_id = u.id AND c.is_published = 1 AND c.is_deleted = 0
+            LEFT JOIN user_read ur ON ur.content_id = c.id
+            WHERE 1=1 {$searchWhere}
+            GROUP BY u.id, u.name, u.email
+            HAVING content_count > 0
+            ORDER BY {$orderSql}
+        ", $searchParam);
+
+        return view('admin.reports.authors', compact('authors', 'sort', 'search'));
+    }
+
+    public function authorDetail(string $userId): View
+    {
+        $db = $this->db();
+
+        $author = $db->selectOne(
+            'SELECT id, name, email, created_at FROM users WHERE id = ?',
+            [$userId]
+        );
+
+        if (! $author) {
+            abort(404, 'Author tidak ditemukan.');
+        }
+
+        $contents = $db->select('
+            SELECT c.id, c.title, c.is_published, c.read_count, c.view_count, c.subscribe_count,
+                   c.rating, c.is_completed, c.published_at,
+                   mcc.name AS category,
+                   (SELECT COUNT(*) FROM chapters ch WHERE ch.content_id = c.id AND ch.is_published=1 AND ch.is_deleted=0) AS chapter_count,
+                   COUNT(DISTINCT ur.user_id) AS unique_readers,
+                   (SELECT ch_first.read_count FROM chapters ch_first
+                    WHERE ch_first.content_id = c.id AND ch_first.is_published=1 AND ch_first.is_deleted=0
+                    ORDER BY ch_first.sequence ASC LIMIT 1) AS first_ch_reads,
+                   (SELECT ch_last.read_count FROM chapters ch_last
+                    WHERE ch_last.content_id = c.id AND ch_last.is_published=1 AND ch_last.is_deleted=0
+                    ORDER BY ch_last.sequence DESC LIMIT 1) AS last_ch_reads
+            FROM content c
+            LEFT JOIN master_content_category mcc ON mcc.id = c.category_id
+            LEFT JOIN user_read ur ON ur.content_id = c.id
+            WHERE c.user_id = ? AND c.is_published = 1 AND c.is_deleted = 0
+            GROUP BY c.id, c.title, c.is_published, c.read_count, c.view_count, c.subscribe_count,
+                     c.rating, c.is_completed, c.published_at, mcc.name
+            ORDER BY c.read_count DESC
+        ', [$userId]);
+
+        $paying_readers = $db->selectOne("
+            SELECT COUNT(DISTINCT t.user_id) AS cnt
+            FROM transactions t
+            WHERE t.status = 'paid'
+              AND EXISTS (
+                  SELECT 1 FROM user_read ur
+                  JOIN content c ON c.id = ur.content_id AND c.user_id = ?
+                  WHERE ur.user_id = t.user_id
+              )
+        ", [$userId]);
+
+        $completionRates = array_filter(array_map(function ($c) {
+            if (! $c->first_ch_reads || $c->first_ch_reads == 0) {
+                return null;
+            }
+
+            return round($c->last_ch_reads / $c->first_ch_reads * 100, 1);
+        }, $contents));
+
+        $avgCompletion = count($completionRates) > 0
+            ? round(array_sum($completionRates) / count($completionRates), 1)
+            : null;
+
+        // Build $stats object that the view expects
+        $stats = (object) [
+            'content_count'  => count($contents),
+            'total_reads'    => array_sum(array_column($contents, 'read_count')),
+            'unique_readers' => array_sum(array_column($contents, 'unique_readers')),
+            'paying_readers' => (int) ($paying_readers->cnt ?? 0),
+        ];
+
+        return view('admin.reports.author-detail', compact(
+            'author', 'contents', 'stats', 'avgCompletion'
+        ));
+    }
+
+    // ── User Journey ─────────────────────────────────────────────────────────
+
+    public function userJourney(): View
+    {
+        $db = $this->db();
+
+        // Funnel counts
+        $funnel = $db->selectOne("
+            SELECT
+                (SELECT COUNT(*) FROM users) AS registered,
+                (SELECT COUNT(DISTINCT user_id) FROM user_read) AS ever_read,
+                (SELECT COUNT(DISTINCT user_id) FROM transactions WHERE status='paid') AS ever_paid,
+                (SELECT COUNT(*) FROM (
+                    SELECT user_id FROM transactions WHERE status='paid'
+                    GROUP BY user_id HAVING COUNT(*) > 1
+                ) r) AS renewed
+        ");
+
+        // Time-to-convert averages
+        $timeToRead = $db->selectOne('
+            SELECT ROUND(AVG(days_to_read), 1) AS avg_days
+            FROM (
+                SELECT u.id,
+                    DATEDIFF(MIN(ur.created_at), u.created_at) AS days_to_read
+                FROM users u
+                JOIN user_read ur ON ur.user_id = u.id
+                GROUP BY u.id
+                HAVING days_to_read >= 0
+            ) t
+        ');
+
+        $timeToPay = $db->selectOne("
+            SELECT ROUND(AVG(days_to_pay), 1) AS avg_days
+            FROM (
+                SELECT ur_first.user_id,
+                    DATEDIFF(MIN(t.paid_at), MIN(ur_first.first_read)) AS days_to_pay
+                FROM (
+                    SELECT user_id, MIN(created_at) AS first_read
+                    FROM user_read GROUP BY user_id
+                ) ur_first
+                JOIN transactions t ON t.user_id = ur_first.user_id AND t.status = 'paid'
+                GROUP BY ur_first.user_id
+                HAVING days_to_pay >= 0
+            ) t
+        ");
+
+        $timeToRenew = $db->selectOne("
+            SELECT ROUND(AVG(days_to_renew), 1) AS avg_days
+            FROM (
+                SELECT user_id,
+                    DATEDIFF(
+                        MIN(CASE WHEN rn = 2 THEN paid_at END),
+                        MIN(CASE WHEN rn = 1 THEN paid_at END)
+                    ) AS days_to_renew
+                FROM (
+                    SELECT user_id, paid_at,
+                        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY paid_at ASC) AS rn
+                    FROM transactions WHERE status = 'paid'
+                ) ranked
+                WHERE rn <= 2
+                GROUP BY user_id
+                HAVING days_to_renew > 0
+            ) t
+        ");
+
+        // Monthly cohort — last 6 months
+        $cohorts = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $monthStart = now()->subMonths($i)->startOfMonth()->format('Y-m-d');
+            $monthEnd = now()->subMonths($i)->endOfMonth()->format('Y-m-d');
+            $label = now()->subMonths($i)->format('M Y');
+
+            $row = $db->selectOne("
+                SELECT
+                    COUNT(DISTINCT u.id) AS registered,
+                    COUNT(DISTINCT ur.user_id) AS ever_read,
+                    COUNT(DISTINCT t.user_id) AS ever_paid,
+                    COUNT(DISTINCT renew.user_id) AS renewed
+                FROM users u
+                LEFT JOIN user_read ur ON ur.user_id = u.id
+                LEFT JOIN transactions t ON t.user_id = u.id AND t.status = 'paid'
+                LEFT JOIN (
+                    SELECT user_id FROM transactions WHERE status = 'paid'
+                    GROUP BY user_id HAVING COUNT(*) > 1
+                ) renew ON renew.user_id = u.id
+                WHERE u.created_at BETWEEN ? AND ?
+            ", [$monthStart, $monthEnd.' 23:59:59']);
+
+            $cohorts[] = [
+                'label' => $label,
+                'registered' => (int) $row->registered,
+                'ever_read' => (int) $row->ever_read,
+                'ever_paid' => (int) $row->ever_paid,
+                'renewed' => (int) $row->renewed,
+            ];
+        }
+
+        return view('admin.reports.user-journey', compact(
+            'funnel', 'timeToRead', 'timeToPay', 'timeToRenew', 'cohorts'
+        ));
+    }
+
+    // ── Revenue Forecasting ──────────────────────────────────────────────────
+
+    public function revenueForecast(): View
+    {
+        $db = $this->db();
+
+        // Expiring in next 30 days by plan
+        $expiringByPlan = $db->select("
+            SELECT mp.id AS plan_id, mp.name AS plan_name, mp.price,
+                   COUNT(DISTINCT t.user_id) AS expiring_count
+            FROM transactions t
+            JOIN membership_plans mp ON mp.id = t.plan_id
+            WHERE t.status = 'paid'
+              AND t.expired_at BETWEEN NOW() AND NOW() + INTERVAL 30 DAY
+            GROUP BY mp.id, mp.name, mp.price
+            ORDER BY expiring_count DESC
+        ");
+
+        // Historical renewal rate per plan (last 90 days):
+        // renewal = user who made another paid transaction within 14 days after expiry
+        $renewalRateRows = $db->select("
+            SELECT mp.id AS plan_id,
+                   COUNT(DISTINCT t.user_id) AS expired_count,
+                   COUNT(DISTINCT renew.user_id) AS renewed_count
+            FROM transactions t
+            JOIN membership_plans mp ON mp.id = t.plan_id
+            LEFT JOIN transactions renew ON renew.user_id = t.user_id
+                AND renew.status = 'paid'
+                AND renew.paid_at BETWEEN t.expired_at AND DATE_ADD(t.expired_at, INTERVAL 14 DAY)
+                AND renew.id != t.id
+            WHERE t.status = 'paid'
+              AND t.expired_at BETWEEN NOW() - INTERVAL 90 DAY AND NOW()
+            GROUP BY mp.id
+        ");
+
+        $renewalRateMap = [];
+        foreach ($renewalRateRows as $row) {
+            $renewalRateMap[$row->plan_id] = $row->expired_count > 0
+                ? round($row->renewed_count / $row->expired_count, 3)
+                : 0.3; // default 30% if no data
+        }
+
+        // Revenue from renewals forecast
+        $renewalForecast = 0;
+        $forecastByPlan = [];
+        foreach ($expiringByPlan as $plan) {
+            $rate = $renewalRateMap[$plan->plan_id] ?? 0.3;
+            $expected = round($plan->expiring_count * $rate * $plan->price);
+            $renewalForecast += $expected;
+            $forecastByPlan[] = [
+                'plan_name' => $plan->plan_name,
+                'price' => $plan->price,
+                'expiring' => $plan->expiring_count,
+                'renewal_rate' => round($rate * 100, 1),
+                'expected_rev' => $expected,
+            ];
+        }
+
+        // New subscriptions forecast
+        $newUserStats = $db->selectOne("
+            SELECT
+                COUNT(*) / 30 AS avg_new_per_day,
+                (SELECT COUNT(DISTINCT user_id) FROM transactions WHERE status='paid') /
+                NULLIF((SELECT COUNT(*) FROM users), 0) AS conversion_rate,
+                (SELECT AVG(mp2.price) FROM membership_plans mp2 WHERE mp2.price > 0) AS avg_price
+            FROM users
+            WHERE created_at >= NOW() - INTERVAL 30 DAY
+        ");
+
+        $avgNewPerDay = (float) ($newUserStats->avg_new_per_day ?? 0);
+        $conversionRate = (float) ($newUserStats->conversion_rate ?? 0);
+        $avgPlanPrice = (float) ($newUserStats->avg_price ?? 0);
+        $newSubForecast = round($avgNewPerDay * 30 * $conversionRate * $avgPlanPrice);
+
+        $baseForecast = $renewalForecast + $newSubForecast;
+        $pessimistic = round($baseForecast * 0.8);
+        $optimistic = round($baseForecast * 1.2);
+
+        // Historical revenue last 3 months
+        $historicalRevenue = $db->select("
+            SELECT
+                DATE_FORMAT(paid_at, '%Y-%m') AS month,
+                COALESCE(SUM(total_amount), 0) AS revenue
+            FROM transactions
+            WHERE status = 'paid'
+              AND paid_at >= NOW() - INTERVAL 3 MONTH
+              AND paid_at < DATE_FORMAT(NOW(), '%Y-%m-01')
+            GROUP BY DATE_FORMAT(paid_at, '%Y-%m')
+            ORDER BY month
+        ");
+
+        $hasAiKey = ! empty(config('services.anthropic.key'));
+
+        return view('admin.reports.revenue-forecast', compact(
+            'expiringByPlan', 'forecastByPlan',
+            'renewalForecast', 'newSubForecast',
+            'baseForecast', 'pessimistic', 'optimistic',
+            'historicalRevenue', 'avgNewPerDay', 'conversionRate',
+            'hasAiKey'
+        ));
+    }
+
+    public function revenueForecastAi(Request $request): JsonResponse
+    {
+        $apiKey = config('services.anthropic.key');
+        if (empty($apiKey)) {
+            return response()->json(['error' => 'API key tidak dikonfigurasi.'], 400);
+        }
+
+        if (Cache::has('revenue_forecast_ai_narrative')) {
+            return response()->json([
+                'narrative' => Cache::get('revenue_forecast_ai_narrative'),
+                'cached_at' => Cache::get('revenue_forecast_ai_cached_at'),
+                'from_cache' => true,
+            ]);
+        }
+
+        $baseForecast = $request->input('base_forecast', 0);
+        $pessimistic = $request->input('pessimistic', 0);
+        $optimistic = $request->input('optimistic', 0);
+        $renewalPct = $request->input('renewal_pct', 0);
+        $newSubPct = $request->input('new_sub_pct', 0);
+        $conversionRate = $request->input('conversion_rate', 0);
+
+        $prompt = <<<PROMPT
+Kamu adalah analis keuangan untuk platform baca novel digital Novelya (Indonesia).
+
+DATA FORECAST REVENUE BULAN DEPAN:
+- Prediksi realistis: Rp {$baseForecast}
+- Pesimistis (-20%): Rp {$pessimistic}
+- Optimistis (+20%): Rp {$optimistic}
+- Kontribusi dari renewal: {$renewalPct}%
+- Kontribusi dari subscriber baru: {$newSubPct}%
+- Conversion rate saat ini: {$conversionRate}%
+
+Berikan analisis singkat dalam Bahasa Indonesia:
+1. **Interpretasi Forecast** (1-2 kalimat: apakah angka ini sehat? context-nya apa?)
+2. **Faktor Utama** (2 bullet point: apa yang paling mempengaruhi forecast ini)
+3. **1 Rekomendasi Spesifik** untuk meningkatkan revenue bulan depan
+
+Format markdown. Singkat dan actionable. Maksimal 200 kata.
+PROMPT;
+
+        try {
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'x-api-key' => $apiKey,
+                    'anthropic-version' => '2023-06-01',
+                    'content-type' => 'application/json',
+                ])
+                ->post('https://api.anthropic.com/v1/messages', [
+                    'model' => 'claude-haiku-4-5-20251001',
+                    'max_tokens' => 600,
+                    'messages' => [['role' => 'user', 'content' => $prompt]],
+                ]);
+
+            if (! $response->successful()) {
+                return response()->json(['error' => 'API error: '.$response->status()], 500);
+            }
+
+            $narrative = $response->json('content.0.text');
+            $cachedAt = now()->setTimezone('Asia/Jakarta')->format('d M Y H:i');
+
+            Cache::put('revenue_forecast_ai_narrative', $narrative, now()->addHour());
+            Cache::put('revenue_forecast_ai_cached_at', $cachedAt, now()->addHour());
+
+            return response()->json(['narrative' => $narrative, 'cached_at' => $cachedAt, 'from_cache' => false]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Gagal menghubungi AI: '.$e->getMessage()], 500);
+        }
     }
 }
