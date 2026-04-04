@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmailCampaign extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'email_campaigns';
 
     protected $fillable = [

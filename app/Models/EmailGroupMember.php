@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmailGroupMember extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'email_group_members';
 
     protected $fillable = ['email_group_id', 'email', 'name'];

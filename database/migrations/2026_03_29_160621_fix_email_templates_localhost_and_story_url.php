@@ -5,19 +5,13 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    public function getConnection(): string
-    {
-        return 'sqlite';
-    }
-
     /**
      * Replace hardcoded http://localhost links with {{app_url}} merge tag,
      * and fix story URLs from /story/ to /detail/ in all email templates.
      */
     public function up(): void
     {
-        $templates = DB::connection('sqlite')
-            ->table('email_templates')
+        $templates = DB::table('email_templates')
             ->get(['id', 'html_body']);
 
         foreach ($templates as $template) {
@@ -32,8 +26,7 @@ return new class extends Migration
             $html = str_replace('/story/', '/detail/', $html);
 
             if ($html !== $original) {
-                DB::connection('sqlite')
-                    ->table('email_templates')
+                DB::table('email_templates')
                     ->where('id', $template->id)
                     ->update(['html_body' => $html]);
             }

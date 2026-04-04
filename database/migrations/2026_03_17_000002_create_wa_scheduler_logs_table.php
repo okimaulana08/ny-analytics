@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('wa_scheduler_logs', function (Blueprint $table) {
+        Schema::create('wa_scheduler_logs', function (Blueprint $table) {
             $table->id();
             $table->string('scheduler_name');
             $table->enum('status', ['success', 'failed', 'skipped']);
@@ -22,6 +20,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('wa_scheduler_logs');
+        Schema::dropIfExists('wa_scheduler_logs');
     }
 };

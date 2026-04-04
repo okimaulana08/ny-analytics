@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('email_campaign_logs', function (Blueprint $table) {
+        Schema::create('email_campaign_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('email_campaign_id')->constrained()->cascadeOnDelete();
             $table->string('recipient_email');
@@ -29,6 +27,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('email_campaign_logs');
+        Schema::dropIfExists('email_campaign_logs');
     }
 };

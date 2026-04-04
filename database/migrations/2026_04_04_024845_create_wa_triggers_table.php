@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('wa_triggers', function (Blueprint $table) {
+        Schema::create('wa_triggers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->enum('type', ['pending_payment', 'expiry_reminder']);
@@ -24,6 +22,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('wa_triggers');
+        Schema::dropIfExists('wa_triggers');
     }
 };

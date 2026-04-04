@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class AppConfig extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'system_configs';
 
     protected $fillable = [

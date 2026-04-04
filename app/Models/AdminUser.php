@@ -9,8 +9,6 @@ class AdminUser extends Model
 {
     public const SUPER_ADMIN_EMAIL = 'admin@novelya.id';
 
-    protected $connection = 'sqlite';
-
     protected $table = 'admin_users';
 
     protected $fillable = ['name', 'email', 'password', 'is_active', 'avatar_color', 'last_login_at'];

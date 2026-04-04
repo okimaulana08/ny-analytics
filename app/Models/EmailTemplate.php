@@ -30,8 +30,6 @@ class EmailTemplate extends Model
         self::TYPE_PROMO => 'Promo',
     ];
 
-    protected $connection = 'sqlite';
-
     protected $table = 'email_templates';
 
     protected $fillable = [

@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('admin_activity_logs', function (Blueprint $table) {
+        Schema::create('admin_activity_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('admin_user_id')->nullable()->constrained('admin_users')->nullOnDelete();
             $table->string('admin_name');
@@ -28,6 +26,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('admin_activity_logs');
+        Schema::dropIfExists('admin_activity_logs');
     }
 };

@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ScheduledEmailReport extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'scheduled_email_reports';
 
     protected $fillable = [

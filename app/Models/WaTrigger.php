@@ -19,8 +19,6 @@ class WaTrigger extends Model
 
     public const COND_AFTER_EXPIRY = 'after_expiry';
 
-    protected $connection = 'sqlite';
-
     protected $fillable = [
         'name',
         'type',

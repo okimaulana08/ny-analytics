@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('wa_notifications', function (Blueprint $table) {
+        Schema::create('wa_notifications', function (Blueprint $table) {
             $table->id();
             $table->string('transaction_id', 36)->index();
             $table->enum('type', ['pending', 'paid']);
@@ -22,6 +20,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('wa_notifications');
+        Schema::dropIfExists('wa_notifications');
     }
 };

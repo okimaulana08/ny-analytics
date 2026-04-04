@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmailTriggerLog extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $fillable = [
         'email_trigger_id',
         'recipient_email',

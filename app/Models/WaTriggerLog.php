@@ -9,8 +9,6 @@ class WaTriggerLog extends Model
 {
     public $timestamps = false;
 
-    protected $connection = 'sqlite';
-
     protected $fillable = [
         'wa_trigger_id',
         'user_id',

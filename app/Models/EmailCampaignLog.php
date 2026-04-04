@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmailCampaignLog extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'email_campaign_logs';
 
     protected $fillable = [

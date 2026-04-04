@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WaTriggerTemplate extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $fillable = [
         'wa_trigger_id',
         'body',

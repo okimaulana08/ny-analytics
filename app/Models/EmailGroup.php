@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmailGroup extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'email_groups';
 
     protected $fillable = ['name', 'description', 'type', 'criteria', 'is_active'];

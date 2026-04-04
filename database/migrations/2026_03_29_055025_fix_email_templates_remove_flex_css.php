@@ -5,19 +5,13 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    public function getConnection(): string
-    {
-        return 'sqlite';
-    }
-
     /**
      * Remove email-client-incompatible CSS from all email templates.
      * Gmail does not support display:flex, -webkit-line-clamp, etc.
      */
     public function up(): void
     {
-        $templates = DB::connection('sqlite')
-            ->table('email_templates')
+        $templates = DB::table('email_templates')
             ->get(['id', 'html_body']);
 
         foreach ($templates as $template) {
@@ -44,8 +38,7 @@ return new class extends Migration
                 $html
             ) ?? $html;
 
-            DB::connection('sqlite')
-                ->table('email_templates')
+            DB::table('email_templates')
                 ->where('id', $template->id)
                 ->update(['html_body' => $html]);
         }

@@ -7,21 +7,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->table('wa_triggers', function (Blueprint $table) {
+        Schema::table('wa_triggers', function (Blueprint $table) {
             $table->string('condition')->nullable()->after('type');
         });
 
         // Backfill existing rows
-        DB::connection('sqlite')->table('wa_triggers')
+        DB::table('wa_triggers')
             ->where('type', 'pending_payment')
             ->whereNull('condition')
             ->update(['condition' => 'invoice_active']);
 
-        DB::connection('sqlite')->table('wa_triggers')
+        DB::table('wa_triggers')
             ->where('type', 'expiry_reminder')
             ->whereNull('condition')
             ->update(['condition' => 'before_expiry']);
@@ -29,7 +27,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->table('wa_triggers', function (Blueprint $table) {
+        Schema::table('wa_triggers', function (Blueprint $table) {
             $table->dropColumn('condition');
         });
     }

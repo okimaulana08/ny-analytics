@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('sqlite')->table('email_campaigns', function (Blueprint $table) {
+        Schema::table('email_campaigns', function (Blueprint $table) {
             $table->json('extra_recipients')->nullable();
             $table->json('excluded_emails')->nullable();
         });
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('sqlite')->table('email_campaigns', function (Blueprint $table) {
+        Schema::table('email_campaigns', function (Blueprint $table) {
             $table->dropColumn(['extra_recipients', 'excluded_emails']);
         });
     }

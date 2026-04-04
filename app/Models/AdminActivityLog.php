@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AdminActivityLog extends Model
 {
-    protected $connection = 'sqlite';
-
     protected $table = 'admin_activity_logs';
 
     public $timestamps = false;

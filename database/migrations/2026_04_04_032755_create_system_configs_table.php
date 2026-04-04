@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('system_configs', function (Blueprint $table) {
+        Schema::create('system_configs', function (Blueprint $table) {
             $table->id();
             $table->string('group');
             $table->string('label');
@@ -24,6 +22,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('system_configs');
+        Schema::dropIfExists('system_configs');
     }
 };

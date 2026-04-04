@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->table('email_triggers', function (Blueprint $table) {
+        Schema::table('email_triggers', function (Blueprint $table) {
             $table->string('subject')->nullable()->after('condition');
             $table->longText('html_body')->nullable()->after('subject');
             $table->string('preview_text')->nullable()->after('html_body');
@@ -19,7 +17,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('sqlite')->table('email_triggers', function (Blueprint $table) {
+        Schema::table('email_triggers', function (Blueprint $table) {
             $table->dropColumn(['subject', 'html_body', 'preview_text']);
         });
     }

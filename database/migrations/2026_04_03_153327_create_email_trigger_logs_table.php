@@ -6,11 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'sqlite';
-
     public function up(): void
     {
-        Schema::connection('sqlite')->create('email_trigger_logs', function (Blueprint $table) {
+        Schema::create('email_trigger_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('email_trigger_id')->constrained()->cascadeOnDelete();
             $table->string('recipient_email');
@@ -21,12 +19,12 @@ return new class extends Migration
             $table->timestamp('sent_at')->nullable();
             $table->timestamps();
 
-            $table->index(['email_trigger_id', 'recipient_email', 'sent_at']);
+            $table->index(['email_trigger_id', 'recipient_email', 'sent_at'], 'etl_trigger_email_sent_idx');
         });
     }
 
     public function down(): void
     {
-        Schema::connection('sqlite')->dropIfExists('email_trigger_logs');
+        Schema::dropIfExists('email_trigger_logs');
     }
 };
