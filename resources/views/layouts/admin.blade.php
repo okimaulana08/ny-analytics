@@ -338,12 +338,28 @@
 
         {{-- User info --}}
         <div class="px-3 pb-4 border-t border-white/[0.06] pt-3">
+            @php
+            $sidebarColorMap = [
+                'blue'   => 'from-blue-500 to-blue-700',
+                'purple' => 'from-purple-500 to-purple-700',
+                'green'  => 'from-emerald-500 to-emerald-700',
+                'orange' => 'from-orange-400 to-orange-600',
+                'pink'   => 'from-pink-500 to-pink-700',
+                'red'    => 'from-red-500 to-red-700',
+                'teal'   => 'from-teal-500 to-teal-700',
+                'indigo' => 'from-indigo-500 to-indigo-700',
+            ];
+            $sidebarGrad = $sidebarColorMap[session('admin_user.avatar_color', 'blue')] ?? 'from-blue-500 to-blue-700';
+            @endphp
             <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/[0.05]">
-                <div class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                <a href="{{ route('admin.profile') }}" title="Profil Saya"
+                    class="w-7 h-7 rounded-full bg-gradient-to-br {{ $sidebarGrad }} flex items-center justify-center text-white font-semibold text-xs flex-shrink-0 hover:ring-2 hover:ring-white/30 transition-all">
                     {{ strtoupper(substr(session('admin_user.name', 'A'), 0, 1)) }}
-                </div>
+                </a>
                 <div class="flex-1 min-w-0">
-                    <div class="text-white text-xs font-medium truncate">{{ session('admin_user.name', 'Admin') }}</div>
+                    <a href="{{ route('admin.profile') }}" class="block text-white text-xs font-medium truncate hover:text-white/80 transition-colors">
+                        {{ session('admin_user.name', 'Admin') }}
+                    </a>
                     <div class="text-white/30 text-[11px] truncate">{{ session('admin_user.email', '') }}</div>
                 </div>
                 <form action="{{ route('admin.logout') }}" method="POST">

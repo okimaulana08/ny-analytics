@@ -35,7 +35,14 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Email atau password salah.'])->withInput();
         }
 
-        session(['admin_user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]]);
+        $user->update(['last_login_at' => now()]);
+
+        session(['admin_user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'avatar_color' => $user->avatar_color ?? 'blue',
+        ]]);
 
         try {
             ActivityLogger::login($request, $user->id, $user->name, $user->email);

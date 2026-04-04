@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\Crm\IndividualEmailController;
 use App\Http\Controllers\Admin\Crm\ScheduledReportController;
 use App\Http\Controllers\Admin\Crm\WaTriggerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\BrevoWebhookController;
@@ -37,8 +38,13 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
     Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
     Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
     Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+    Route::get('/users/{adminUser}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{adminUser}', [AdminUserController::class, 'update'])->name('users.update');
     Route::patch('/users/{adminUser}/toggle', [AdminUserController::class, 'toggleActive'])->name('users.toggle');
     Route::delete('/users/{adminUser}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::get('/reports/subscription', [ReportController::class, 'subscription'])->name('reports.subscription');
     Route::get('/reports/engagement', [ReportController::class, 'engagement'])->name('reports.engagement');

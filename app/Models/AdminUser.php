@@ -7,18 +7,27 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminUser extends Model
 {
-    protected $connection = 'sqlite';
-    protected $table      = 'admin_users';
+    public const SUPER_ADMIN_EMAIL = 'admin@novelya.id';
 
-    protected $fillable = ['name', 'email', 'password', 'is_active'];
+    protected $connection = 'sqlite';
+
+    protected $table = 'admin_users';
+
+    protected $fillable = ['name', 'email', 'password', 'is_active', 'avatar_color', 'last_login_at'];
 
     protected $hidden = ['password'];
 
     protected $casts = [
-        'is_active'  => 'boolean',
+        'is_active' => 'boolean',
+        'last_login_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->email === self::SUPER_ADMIN_EMAIL;
+    }
 
     public function setPasswordAttribute(string $value): void
     {

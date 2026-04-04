@@ -19,7 +19,51 @@ class ReleaseNoteController extends Controller
     {
         return [
             [
+                'version' => 'v2.1',
+                'date' => '2026-04-05',
+                'tag' => 'latest',
+                'title' => 'User Admin — Edit, Profil & Super Admin Protection',
+                'features' => [
+                    [
+                        'name' => 'Edit User & Reset Password',
+                        'route' => 'admin.users.index',
+                        'description' => 'Admin kini bisa mengedit nama, email, dan mereset password user lain langsung dari daftar User Admin. Tombol edit (ikon pensil) muncul saat hover di setiap baris. Password bersifat opsional — kosongkan jika tidak ingin diubah.',
+                        'suggestions' => [
+                            'Tambah konfirmasi email saat password user di-reset oleh admin lain',
+                            'Log aktivitas reset password di Activity Log dengan nama admin yang melakukan',
+                        ],
+                    ],
+                    [
+                        'name' => 'Profil Saya — Nama, Avatar & Ubah Password',
+                        'route' => 'admin.profile',
+                        'description' => 'Halaman profil pribadi untuk setiap admin. Edit nama, pilih warna avatar dari 8 pilihan gradien (preview live), dan ubah password dengan konfirmasi password lama. Akses cepat via klik nama/avatar di sidebar. Perubahan warna avatar langsung terlihat di sidebar tanpa perlu login ulang.',
+                        'suggestions' => [
+                            'Tambah opsi upload foto profil sebagai pengganti avatar inisial',
+                            'Tambah field "Nama Tampilan" yang berbeda dari nama akun',
+                        ],
+                    ],
+                    [
+                        'name' => 'Super Admin Protection',
+                        'route' => 'admin.users.index',
+                        'description' => 'Akun admin@novelya.id kini dilindungi berlapis: tidak bisa dihapus, tidak bisa dinonaktifkan, emailnya tidak bisa diubah, dan passwordnya hanya bisa diubah oleh pemilik akun sendiri. Badge bintang amber "Super Admin" tampil di daftar user dan halaman profil.',
+                        'suggestions' => [
+                            'Tambah opsi multi-super-admin yang dapat dikonfigurasi dari System Config',
+                        ],
+                    ],
+                    [
+                        'name' => 'Last Login Tracking',
+                        'route' => 'admin.users.index',
+                        'description' => 'Setiap kali admin berhasil login, timestamp-nya dicatat. Kolom "Login Terakhir" tampil di daftar User Admin, dan detail waktu login ditampilkan di halaman Profil Saya.',
+                        'suggestions' => [
+                            'Alert ke super admin jika ada akun yang tidak login > 30 hari',
+                            'Tampilkan IP address login terakhir untuk deteksi akses mencurigakan',
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'version' => 'v2.0',
+                'tag' => null,
                 'date' => '2026-04-04',
                 'tag' => 'latest',
                 'title' => 'Enhanced Trigger Conditions',
