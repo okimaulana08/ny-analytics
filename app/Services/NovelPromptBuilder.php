@@ -186,7 +186,10 @@ EOT;
 
         $targetWords = $guideline?->target_chapter_word_count ?? 1500;
         $pov = $guideline?->narrative_pov === 'first_person' ? 'orang pertama (AKU)' : 'orang ketiga';
+        $num = $chapter->chapter_number;
+        $total = $story->total_chapters_planned;
 
+        // --- A. Characters ---
         $characters = '';
         if ($story->characters) {
             $characters = collect($story->characters)
@@ -194,45 +197,85 @@ EOT;
                 ->join("\n");
         }
 
-        // Continuity anchor: last 2-3 paragraphs of previous approved chapter
+        // --- B. Story arc position ---
+        $babak = $num <= (int) ($total * 0.33)
+            ? 'Babak 1 — perkenalan & konflik awal, nada membangun ketegangan'
+            : ($num <= (int) ($total * 0.66)
+                ? 'Babak 2 — puncak konflik & perlawanan, intensitas tinggi'
+                : 'Babak 3 — resolusi & HEA, nada menuju kebahagiaan');
+
+        // --- C. Previously-on: outlines of up to 5 previous chapters ---
+        $previouslyOn = '';
+        if ($num > 1) {
+            $prevOutlines = $story->chapters()
+                ->where('chapter_number', '<', $num)
+                ->whereNotNull('outline_content')
+                ->orderByDesc('chapter_number')
+                ->limit(5)
+                ->get()
+                ->sortBy('chapter_number');
+
+            if ($prevOutlines->isNotEmpty()) {
+                $lines = $prevOutlines->map(
+                    fn ($c) => "- Bab {$c->chapter_number}".($c->title ? " ({$c->title})" : '').": {$c->outline_content}"
+                )->join("\n");
+                $previouslyOn = "\n\nRINGKASAN 5 BAB TERAKHIR (untuk menjaga kontinuitas alur):\n{$lines}";
+            }
+        }
+
+        // --- D. Continuity anchor: last 3 paragraphs of previous chapter (any status with draft) ---
         $continuityAnchor = '';
-        if ($chapter->chapter_number > 1) {
+        if ($num > 1) {
             $prevChapter = $story->chapters()
-                ->where('chapter_number', $chapter->chapter_number - 1)
-                ->where('content_status', 'approved')
+                ->where('chapter_number', $num - 1)
+                ->whereNotNull('content_draft')
                 ->first();
 
             if ($prevChapter?->content_draft) {
-                $paragraphs = array_filter(explode("\n\n", $prevChapter->content_draft));
-                $lastParagraphs = array_slice(array_values($paragraphs), -3);
+                $paragraphs = array_values(array_filter(explode("\n\n", $prevChapter->content_draft)));
+                $lastParagraphs = array_slice($paragraphs, -3);
                 if ($lastParagraphs) {
                     $anchor = implode("\n\n", $lastParagraphs);
-                    $continuityAnchor = "\n\nAKHIR BAB SEBELUMNYA (untuk menjaga kontinuitas):\n---\n{$anchor}\n---";
+                    $continuityAnchor = "\n\nAKHIR BAB SEBELUMNYA — sambungkan alur dari sini:\n---\n{$anchor}\n---";
                 }
             }
         }
 
-        $revisionNote = '';
-        if ($chapter->content_revision_note) {
-            $revisionNote = "\n\nCATATAN REVISI DARI EDITOR:\n{$chapter->content_revision_note}";
+        // --- E. Relevant plot point for this chapter ---
+        $plotPointNote = '';
+        if ($story->plot_points) {
+            $match = collect($story->plot_points)->firstWhere('chapter', $num);
+            if ($match) {
+                $plotPointNote = "\n\nPLOT POINT WAJIB BAB INI: {$match['event']}\n(Pastikan momen ini terjadi di bab ini sesuai rencana cerita.)";
+            }
         }
 
-        $notes = $chapter->content_prompt_notes ? "\nCatatan tambahan: {$chapter->content_prompt_notes}" : '';
+        // --- F. Revision note & extra notes ---
+        $revisionNote = $chapter->content_revision_note
+            ? "\n\nCATATAN REVISI DARI EDITOR:\n{$chapter->content_revision_note}"
+            : '';
+
+        $notes = $chapter->content_prompt_notes
+            ? "\nCatatan tambahan: {$chapter->content_prompt_notes}"
+            : '';
 
         $user = <<<EOT
-Tulis konten penuh untuk Bab {$chapter->chapter_number}: "{$chapter->title}" dari novel "{$story->title_draft}".
+Tulis konten penuh untuk Bab {$num}: "{$chapter->title}" dari novel "{$story->title_draft}".
+
+POSISI DALAM CERITA: Bab {$num} dari {$total} total bab — {$babak}
 
 OUTLINE BAB INI:
 {$chapter->outline_content}
 
 TOKOH:
-{$characters}{$continuityAnchor}{$revisionNote}{$notes}
+{$characters}{$previouslyOn}{$continuityAnchor}{$plotPointNote}{$revisionNote}{$notes}
 
 INSTRUKSI:
 - Sudut pandang {$pov}
 - Target {$targetWords} kata
 - Bahasa Indonesia sehari-hari, emosional, natural
 - Kalimat pendek maks 20 kata
+- Jaga konsistensi nama tokoh, fakta, dan peristiwa dari bab-bab sebelumnya
 - Akhiri dengan cliffhanger atau pertanyaan menggantung
 - Tulis prosa penuh, BUKAN outline
 
