@@ -150,15 +150,17 @@
 
 {{-- Flash messages --}}
 @if(session('success') || session('error'))
-<div class="fixed top-14 left-0 right-0 z-40 flex justify-center px-4 pt-3">
+<div class="fixed top-14 left-0 right-0 z-40 flex justify-center px-4 pt-3 pointer-events-none"
+    x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+    x-transition:leave="transition duration-500" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
     @if(session('success'))
-    <div class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium" style="background: rgba(45,106,79,0.4); border: 1px solid rgba(149,213,178,0.3); color: #95d5b2; max-width: 480px;">
+    <div class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium pointer-events-auto" style="background: rgba(45,106,79,0.4); border: 1px solid rgba(149,213,178,0.3); color: #95d5b2; max-width: 480px;">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         {{ session('success') }}
     </div>
     @endif
     @if(session('error'))
-    <div class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium" style="background: rgba(107,45,45,0.4); border: 1px solid rgba(244,160,160,0.3); color: #f4a0a0; max-width: 480px;">
+    <div class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium pointer-events-auto" style="background: rgba(107,45,45,0.4); border: 1px solid rgba(244,160,160,0.3); color: #f4a0a0; max-width: 480px;">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         {{ session('error') }}
     </div>
