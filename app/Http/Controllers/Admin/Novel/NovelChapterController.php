@@ -91,6 +91,44 @@ class NovelChapterController extends Controller
         return back()->with('success', 'Konten bab disetujui!');
     }
 
+    public function updateOutline(Request $request, NovelStory $story, NovelChapter $chapter): RedirectResponse
+    {
+        if (! in_array($chapter->outline_status, ['ready', 'approved'])) {
+            return back()->with('error', 'Outline tidak bisa diedit pada status ini.');
+        }
+
+        $request->validate([
+            'title' => ['nullable', 'string', 'max:500'],
+            'outline_content' => ['required', 'string'],
+        ]);
+
+        $chapter->update([
+            'title' => $request->title,
+            'outline_content' => $request->outline_content,
+        ]);
+
+        return back()->with('success', 'Outline diperbarui.');
+    }
+
+    public function updateContent(Request $request, NovelStory $story, NovelChapter $chapter): RedirectResponse
+    {
+        if (! in_array($chapter->content_status, ['ready', 'approved', 'revision_requested'])) {
+            return back()->with('error', 'Konten tidak bisa diedit pada status ini.');
+        }
+
+        $request->validate([
+            'title' => ['nullable', 'string', 'max:500'],
+            'content_draft' => ['required', 'string'],
+        ]);
+
+        $chapter->update([
+            'title' => $request->title,
+            'content_draft' => $request->content_draft,
+        ]);
+
+        return back()->with('success', 'Konten diperbarui.');
+    }
+
     public function requestRevision(Request $request, NovelStory $story, NovelChapter $chapter): RedirectResponse
     {
         if ($chapter->content_status !== 'ready') {

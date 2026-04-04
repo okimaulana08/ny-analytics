@@ -62,11 +62,21 @@
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {{-- LEFT: Outline Panel (35%) --}}
-        <div class="lg:col-span-2 space-y-4">
+        <div class="lg:col-span-2 space-y-4" x-data="{ editOutline: false }">
             <div class="novel-card p-5 {{ in_array($chapter->outline_status, ['generating']) ? 'generating border' : '' }}">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-mono text-sm font-semibold" style="color: #d4a04a;">Outline</h2>
-                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->outline_status }}">{{ $chapter->outline_status }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->outline_status }}">{{ $chapter->outline_status }}</span>
+                        @if(in_array($chapter->outline_status, ['ready', 'approved']) && $chapter->outline_content)
+                        <button @click="editOutline = !editOutline"
+                            class="text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors"
+                            :style="editOutline ? 'border-color: rgba(212,160,74,0.5); color: #d4a04a; background: rgba(212,160,74,0.05);' : 'border-color: rgba(255,255,255,0.1); color: #5a5368;'"
+                            style="border-color: rgba(255,255,255,0.1); color: #5a5368;">
+                            <span x-text="editOutline ? '✕ Batal' : '✎ Edit'"></span>
+                        </button>
+                        @endif
+                    </div>
                 </div>
 
                 @if($chapter->outline_status === 'generating')
@@ -80,8 +90,34 @@
                     <p class="text-xs" style="color: #8a7f9a;">AI sedang buat outline...</p>
                 </div>
                 @elseif($chapter->outline_content)
-                <div class="font-serif text-sm leading-relaxed mb-4" style="color: #e8e0d0; line-height: 1.75;">
+
+                {{-- View mode --}}
+                <div x-show="!editOutline" class="font-serif text-sm leading-relaxed mb-4" style="color: #e8e0d0; line-height: 1.75;">
                     {!! nl2br(e($chapter->outline_content)) !!}
+                </div>
+
+                {{-- Edit mode --}}
+                <div x-show="editOutline" x-cloak>
+                    <form method="POST" action="{{ route('admin.novel.chapters.update-outline', [$story, $chapter]) }}" class="space-y-3">
+                        @csrf @method('PATCH')
+                        <div>
+                            <label class="text-[10px] font-mono block mb-1" style="color: #8a7f9a;">JUDUL BAB</label>
+                            <input type="text" name="title" value="{{ old('title', $chapter->title) }}"
+                                class="novel-input text-xs" placeholder="Judul bab (opsional)">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono block mb-1" style="color: #8a7f9a;">ISI OUTLINE</label>
+                            <textarea name="outline_content" class="novel-input text-sm resize-y font-serif" rows="8"
+                                style="line-height: 1.65;">{{ old('outline_content', $chapter->outline_content) }}</textarea>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="btn-gold text-xs flex items-center gap-1 flex-1 justify-center">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Simpan
+                            </button>
+                            <button type="button" @click="editOutline = false" class="btn-ghost text-xs flex-1 text-center">Batal</button>
+                        </div>
+                    </form>
                 </div>
                 @else
                 <p class="text-sm text-center py-4" style="color: #5a5368;">Outline belum tersedia</p>
@@ -89,7 +125,7 @@
 
                 {{-- Outline actions --}}
                 @if($chapter->outline_status === 'ready')
-                <div class="space-y-2 pt-3" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                <div class="space-y-2 pt-3" x-show="!editOutline" style="border-top: 1px solid rgba(255,255,255,0.05);">
                     <form method="POST" action="{{ route('admin.novel.chapters.approve-outline', [$story, $chapter]) }}">
                         @csrf
                         <button type="submit" class="btn-gold w-full text-sm text-center">✓ Setujui Outline</button>
@@ -107,7 +143,7 @@
                     </div>
                 </div>
                 @elseif($chapter->outline_status === 'approved')
-                <div class="pt-3 text-center" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                <div class="pt-3 text-center" x-show="!editOutline" style="border-top: 1px solid rgba(255,255,255,0.05);">
                     <span class="text-xs font-mono" style="color: #95d5b2;">✓ Outline disetujui</span>
                 </div>
                 @elseif(in_array($chapter->outline_status, ['pending', 'failed']))
@@ -155,7 +191,7 @@
         </div>
 
         {{-- RIGHT: Content Panel (65%) --}}
-        <div class="lg:col-span-3 space-y-4">
+        <div class="lg:col-span-3 space-y-4" x-data="{ editContent: false }">
             <div class="novel-card p-5 {{ in_array($chapter->content_status, ['generating']) ? 'generating border' : '' }}">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-mono text-sm font-semibold" style="color: #d4a04a;">Konten Bab</h2>
@@ -165,7 +201,15 @@
                             $wordCount = str_word_count(strip_tags($chapter->content_draft));
                             $readingMinutes = ceil($wordCount / 200);
                         @endphp
-                        <span class="text-[10px] font-mono" style="color: #8a7f9a;">{{ number_format($wordCount) }} kata · ~{{ $readingMinutes }} min</span>
+                        <span class="text-[10px] font-mono" x-show="!editContent" style="color: #8a7f9a;">{{ number_format($wordCount) }} kata · ~{{ $readingMinutes }} min</span>
+                        @endif
+                        @if(in_array($chapter->content_status, ['ready', 'approved', 'revision_requested']) && $chapter->content_draft)
+                        <button @click="editContent = !editContent"
+                            class="text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors"
+                            :style="editContent ? 'border-color: rgba(212,160,74,0.5); color: #d4a04a; background: rgba(212,160,74,0.05);' : 'border-color: rgba(255,255,255,0.1); color: #5a5368;'"
+                            style="border-color: rgba(255,255,255,0.1); color: #5a5368;">
+                            <span x-text="editContent ? '✕ Batal' : '✎ Edit'"></span>
+                        </button>
                         @endif
                         <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->content_status }}">{{ $chapter->content_status }}</span>
                     </div>
@@ -183,9 +227,36 @@
                     <p class="text-sm" style="color: #8a7f9a;">Proses 1-3 menit tergantung panjang konten</p>
                 </div>
                 @elseif($chapter->content_draft)
-                <div class="prose-novel text-[15px]" style="max-height: 520px; overflow-y: auto; padding-right: 8px;">
+
+                {{-- View mode --}}
+                <div x-show="!editContent" class="prose-novel text-[15px]" style="max-height: 520px; overflow-y: auto; padding-right: 8px;">
                     {!! nl2br(e($chapter->content_draft)) !!}
                 </div>
+
+                {{-- Edit mode --}}
+                <div x-show="editContent" x-cloak>
+                    <form method="POST" action="{{ route('admin.novel.chapters.update-content', [$story, $chapter]) }}" class="space-y-3">
+                        @csrf @method('PATCH')
+                        <div>
+                            <label class="text-[10px] font-mono block mb-1" style="color: #8a7f9a;">JUDUL BAB</label>
+                            <input type="text" name="title" value="{{ old('title', $chapter->title) }}"
+                                class="novel-input text-sm" placeholder="Judul bab (opsional)">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono block mb-1" style="color: #8a7f9a;">ISI KONTEN</label>
+                            <textarea name="content_draft" class="novel-input text-sm font-serif resize-y" rows="20"
+                                style="line-height: 1.75;">{{ old('content_draft', $chapter->content_draft) }}</textarea>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="btn-gold text-sm flex items-center gap-1.5 flex-1 justify-center">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Simpan
+                            </button>
+                            <button type="button" @click="editContent = false" class="btn-ghost text-sm flex-1 text-center">Batal</button>
+                        </div>
+                    </form>
+                </div>
+
                 @elseif($chapter->outline_status === 'approved')
                 <div class="text-center py-12">
                     <p class="font-serif text-base mb-4" style="color: #8a7f9a;">Outline disetujui. Siap generate konten.</p>
@@ -203,6 +274,7 @@
 
                 {{-- Content actions --}}
                 @if(in_array($chapter->content_status, ['ready', 'revision_requested']))
+                <div x-show="!editContent">
                 <div class="space-y-2 pt-4 mt-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
                     @if($chapter->content_status === 'ready')
                     <div class="flex items-center gap-2 flex-wrap">
@@ -244,11 +316,18 @@
                         </form>
                     </div>
                 </div>
+                </div>{{-- /x-show="!editContent" (ready/revision_requested actions) --}}
                 @endif
 
                 @if($chapter->content_status === 'approved')
-                <div class="pt-3 text-center" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                <div x-show="!editContent" class="pt-3 flex items-center justify-between" style="border-top: 1px solid rgba(255,255,255,0.05);">
                     <span class="text-xs font-mono" style="color: #95d5b2;">✓ Konten disetujui</span>
+                    <a href="{{ route('admin.novel.chapters.export-pdf', [$story, $chapter]) }}" target="_blank"
+                        class="text-[10px] font-mono flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors"
+                        style="background: rgba(212,160,74,0.1); color: #d4a04a; border: 1px solid rgba(212,160,74,0.25);">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Export PDF
+                    </a>
                 </div>
                 @endif
 

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin\Novel;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateChapterContentJob;
 use App\Jobs\GenerateNovelOutlinesJob;
 use App\Jobs\GenerateNovelOverviewJob;
+use App\Models\NovelChapter;
 use App\Models\NovelStory;
 use App\Models\NovelWritingGuideline;
 use Illuminate\Http\JsonResponse;
@@ -58,9 +60,64 @@ class NovelStoryController extends Controller
 
     public function show(NovelStory $story): View
     {
-        $story->load(['guideline', 'chapters', 'creator']);
+        $story->load(['guideline', 'chapters', 'creator', 'aiUsages']);
 
-        return view('admin.novel.stories.show', compact('story'));
+        $analyticsData = [];
+        if ($story->total_input_tokens > 0) {
+            $usages = $story->aiUsages;
+
+            // Cost per stage
+            $costPerStage = [
+                'overview' => 0,
+                'outline' => 0,
+                'content' => 0,
+            ];
+            foreach ($usages as $u) {
+                if (isset($costPerStage[$u->stage])) {
+                    $costPerStage[$u->stage] += $u->estimated_cost_usd;
+                }
+            }
+
+            // Token per stage
+            $tokensPerStage = [
+                'overview' => ['in' => 0, 'out' => 0],
+                'outline' => ['in' => 0, 'out' => 0],
+                'content' => ['in' => 0, 'out' => 0],
+            ];
+            foreach ($usages as $u) {
+                if (isset($tokensPerStage[$u->stage])) {
+                    $tokensPerStage[$u->stage]['in'] += $u->input_tokens;
+                    $tokensPerStage[$u->stage]['out'] += $u->output_tokens;
+                }
+            }
+
+            // Cost per chapter
+            $costPerChapter = [];
+            foreach ($story->chapters as $ch) {
+                $chapterUsages = $usages->where('novel_chapter_id', $ch->id);
+                $costPerChapter[$ch->chapter_number] = [
+                    'id' => $ch->id,
+                    'title' => $ch->title ?? 'Bab '.$ch->chapter_number,
+                    'status' => $ch->content_status,
+                    'cost' => $chapterUsages->sum('estimated_cost_usd'),
+                    'generation_count' => $ch->content_generation_count,
+                ];
+            }
+
+            $totalCost = array_sum($costPerStage);
+            $approvedCount = $story->chapters->where('content_status', 'approved')->count();
+
+            $analyticsData = [
+                'total_cost' => $totalCost,
+                'cost_per_stage' => $costPerStage,
+                'tokens_per_stage' => $tokensPerStage,
+                'cost_per_chapter' => $costPerChapter,
+                'avg_cost_per_chapter' => $approvedCount > 0 ? $totalCost / $approvedCount : 0,
+                'usages' => $usages->sortBy('created_at')->values(),
+            ];
+        }
+
+        return view('admin.novel.stories.show', compact('story', 'analyticsData'));
     }
 
     public function status(NovelStory $story): JsonResponse
@@ -144,6 +201,83 @@ class NovelStoryController extends Controller
         ]);
 
         return back()->with('success', 'Semua outline disetujui! Kini bisa generate konten per bab.');
+    }
+
+    public function updateOverview(Request $request, NovelStory $story): RedirectResponse
+    {
+        if (! in_array($story->status, ['overview_ready', 'overview_approved'])) {
+            return back()->with('error', 'Ringkasan tidak bisa diedit pada status ini.');
+        }
+
+        $request->validate([
+            'title_draft' => ['required', 'string', 'max:500'],
+            'theme' => ['nullable', 'string', 'max:1000'],
+            'synopsis' => ['nullable', 'string'],
+            'general_overview' => ['nullable', 'string'],
+            'characters' => ['nullable', 'string'],
+            'plot_points' => ['nullable', 'string'],
+        ]);
+
+        $characters = $story->characters;
+        if ($request->filled('characters')) {
+            $decoded = json_decode($request->characters, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $characters = $decoded;
+            }
+        }
+
+        $plotPoints = $story->plot_points;
+        if ($request->filled('plot_points')) {
+            $decoded = json_decode($request->plot_points, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $plotPoints = $decoded;
+            }
+        }
+
+        $story->update([
+            'title_draft' => $request->title_draft,
+            'theme' => $request->theme,
+            'synopsis' => $request->synopsis,
+            'general_overview' => $request->general_overview,
+            'characters' => $characters,
+            'plot_points' => $plotPoints,
+        ]);
+
+        return back()->with('success', 'Ringkasan diperbarui.');
+    }
+
+    public function generateBulkContent(Request $request, NovelStory $story): RedirectResponse
+    {
+        if (! $story->isContentPhase()) {
+            return back()->with('error', 'Novel belum di tahap konten.');
+        }
+
+        $adminId = session('admin_user.id');
+        $chapterIds = $request->input('chapter_ids', []);
+
+        if (empty($chapterIds) || in_array('all', $chapterIds)) {
+            $chapters = $story->chapters()
+                ->whereIn('content_status', ['pending', 'failed', 'revision_requested'])
+                ->where('outline_status', 'approved')
+                ->get();
+        } else {
+            $chapters = NovelChapter::whereIn('id', $chapterIds)
+                ->where('novel_story_id', $story->id)
+                ->where('outline_status', 'approved')
+                ->whereIn('content_status', ['pending', 'failed', 'revision_requested'])
+                ->get();
+        }
+
+        if ($chapters->isEmpty()) {
+            return back()->with('error', 'Tidak ada bab yang bisa di-generate (outline belum approved atau sudah selesai).');
+        }
+
+        foreach ($chapters as $chapter) {
+            $chapter->update(['content_status' => 'generating']);
+            GenerateChapterContentJob::dispatch($chapter->id, $adminId);
+        }
+
+        return back()->with('success', "Generate konten dimulai untuk {$chapters->count()} bab.");
     }
 
     public function destroy(NovelStory $story): RedirectResponse

@@ -43,7 +43,25 @@ class GenerateNovelOutlinesJob implements ShouldQueue
 
         $jsonStr = preg_replace('/^```(?:json)?\s*/m', '', $raw);
         $jsonStr = preg_replace('/```\s*$/m', '', $jsonStr);
-        $data = json_decode(trim($jsonStr), true);
+        $jsonStr = trim($jsonStr);
+
+        $data = json_decode($jsonStr, true);
+
+        // If truncated (common when max_tokens is hit), try to close the JSON and re-parse
+        if ((! $data || empty($data['chapters'])) && json_last_error() !== JSON_ERROR_NONE) {
+            $attempt = $jsonStr;
+            // Cut back to the last complete object — drops any incomplete trailing entry
+            $lastBrace = strrpos($attempt, '}');
+            if ($lastBrace !== false) {
+                $attempt = substr($attempt, 0, $lastBrace + 1);
+            }
+            $attempt = rtrim($attempt, " \t\n\r,");
+            $open = substr_count($attempt, '{') - substr_count($attempt, '}');
+            $openArr = substr_count($attempt, '[') - substr_count($attempt, ']');
+            $attempt .= str_repeat(']', max(0, $openArr));
+            $attempt .= str_repeat('}', max(0, $open));
+            $data = json_decode($attempt, true);
+        }
 
         if (! $data || empty($data['chapters'])) {
             Log::error("GenerateNovelOutlinesJob: Failed to parse JSON for story #{$this->storyId}", ['raw' => $raw]);

@@ -23,7 +23,7 @@ class NovelGeneratorService
 
         ['system' => $system, 'user' => $user] = $this->promptBuilder->buildOverviewPrompt($story, $guideline);
 
-        return $this->callClaude($model, $user, $system, 2048);
+        return $this->callClaude($model, $user, $system, 8192);
     }
 
     /**
@@ -36,7 +36,7 @@ class NovelGeneratorService
 
         ['system' => $system, 'user' => $user] = $this->promptBuilder->buildAllOutlinesPrompt($story, $guideline);
 
-        return $this->callClaude($model, $user, $system, 4096);
+        return $this->callClaude($model, $user, $system, 16384);
     }
 
     /**

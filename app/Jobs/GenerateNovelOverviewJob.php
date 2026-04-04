@@ -13,7 +13,7 @@ class GenerateNovelOverviewJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 120;
+    public int $timeout = 180;
 
     public int $tries = 2;
 
@@ -33,10 +33,30 @@ class GenerateNovelOverviewJob implements ShouldQueue
         $raw = $result['content'];
         $story->update(['overview_ai_raw' => $raw]);
 
-        // Parse JSON response
+        // Parse JSON response — strip markdown fences if present
         $jsonStr = preg_replace('/^```(?:json)?\s*/m', '', $raw);
         $jsonStr = preg_replace('/```\s*$/m', '', $jsonStr);
-        $data = json_decode(trim($jsonStr), true);
+        $jsonStr = trim($jsonStr);
+
+        $data = json_decode($jsonStr, true);
+
+        // If truncated (common when max_tokens is hit), try to close the JSON and re-parse
+        if (! $data && json_last_error() !== JSON_ERROR_NONE) {
+            $attempt = $jsonStr;
+            // Cut back to the last complete object — drops any incomplete trailing entry
+            // (handles the case where the last string value was cut off mid-quote)
+            $lastBrace = strrpos($attempt, '}');
+            if ($lastBrace !== false) {
+                $attempt = substr($attempt, 0, $lastBrace + 1);
+            }
+            $attempt = rtrim($attempt, " \t\n\r,");
+            // Count unclosed structures after trimming
+            $open = substr_count($attempt, '{') - substr_count($attempt, '}');
+            $openArr = substr_count($attempt, '[') - substr_count($attempt, ']');
+            $attempt .= str_repeat(']', max(0, $openArr));
+            $attempt .= str_repeat('}', max(0, $open));
+            $data = json_decode($attempt, true);
+        }
 
         if (! $data) {
             Log::error("GenerateNovelOverviewJob: Failed to parse JSON for story #{$this->storyId}", ['raw' => $raw]);

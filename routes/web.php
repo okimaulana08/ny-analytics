@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\Crm\ScheduledReportController;
 use App\Http\Controllers\Admin\Crm\WaTriggerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\Novel\NovelChapterController;
+use App\Http\Controllers\Admin\Novel\NovelExportController;
 use App\Http\Controllers\Admin\Novel\NovelStoryController;
 use App\Http\Controllers\Admin\Novel\NovelWritingGuidelineController;
 use App\Http\Controllers\Admin\ProfileController;
@@ -145,15 +146,24 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
         Route::post('/stories/{story}/regenerate-overview', [NovelStoryController::class, 'regenerateOverview'])->name('stories.regenerate-overview');
         Route::post('/stories/{story}/generate-outlines', [NovelStoryController::class, 'dispatchOutlines'])->name('stories.generate-outlines');
         Route::post('/stories/{story}/approve-outlines', [NovelStoryController::class, 'approveAllOutlines'])->name('stories.approve-outlines');
+        Route::patch('/stories/{story}/overview', [NovelStoryController::class, 'updateOverview'])->name('stories.update-overview');
+        Route::post('/stories/{story}/generate-bulk-content', [NovelStoryController::class, 'generateBulkContent'])->name('stories.generate-bulk-content');
         Route::delete('/stories/{story}', [NovelStoryController::class, 'destroy'])->name('stories.destroy');
 
         // Chapters (nested under stories)
         Route::get('/stories/{story}/chapters/{chapter}', [NovelChapterController::class, 'show'])->name('chapters.show');
         Route::post('/stories/{story}/chapters/{chapter}/approve-outline', [NovelChapterController::class, 'approveOutline'])->name('chapters.approve-outline');
         Route::post('/stories/{story}/chapters/{chapter}/regenerate-outline', [NovelChapterController::class, 'regenerateOutline'])->name('chapters.regenerate-outline');
+        Route::patch('/stories/{story}/chapters/{chapter}/outline', [NovelChapterController::class, 'updateOutline'])->name('chapters.update-outline');
+        Route::patch('/stories/{story}/chapters/{chapter}/content', [NovelChapterController::class, 'updateContent'])->name('chapters.update-content');
         Route::post('/stories/{story}/chapters/{chapter}/generate-content', [NovelChapterController::class, 'generateContent'])->name('chapters.generate-content');
         Route::post('/stories/{story}/chapters/{chapter}/approve-content', [NovelChapterController::class, 'approveContent'])->name('chapters.approve-content');
         Route::post('/stories/{story}/chapters/{chapter}/request-revision', [NovelChapterController::class, 'requestRevision'])->name('chapters.request-revision');
+
+        // Export
+        Route::get('/stories/{story}/export/pdf', [NovelExportController::class, 'storyPdf'])->name('stories.export-pdf');
+        Route::get('/stories/{story}/export/docx', [NovelExportController::class, 'storyDocx'])->name('stories.export-docx');
+        Route::get('/stories/{story}/chapters/{chapter}/export/pdf', [NovelExportController::class, 'chapterPdf'])->name('chapters.export-pdf');
 
         // Writing Guidelines
         Route::resource('guidelines', NovelWritingGuidelineController::class)->except(['show']);

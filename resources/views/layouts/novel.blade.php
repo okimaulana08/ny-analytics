@@ -37,6 +37,7 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        [x-cloak] { display: none !important; }
         body { background: #0e0c12; color: #e8e0d0; font-family: 'Inter', sans-serif; }
         .font-mono, .font-code { font-family: 'Fira Code', monospace; }
         .font-serif { font-family: 'Lora', serif; }
@@ -170,6 +171,7 @@
     @yield('content')
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 @stack('scripts')
 </body>
 </html>

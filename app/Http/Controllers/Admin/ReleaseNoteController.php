@@ -19,9 +19,93 @@ class ReleaseNoteController extends Controller
     {
         return [
             [
-                'version' => 'v2.1',
+                'version' => 'v2.3',
                 'date' => '2026-04-05',
                 'tag' => 'latest',
+                'title' => 'Novel Generator — Export PDF/DOCX, Analitik & Edit Konten',
+                'features' => [
+                    [
+                        'name' => 'Export PDF per Bab & Full Novel',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Setiap bab yang sudah approved kini bisa diexport ke PDF langsung dari halaman chapter (tombol "Export PDF" di samping status "Konten disetujui"). Dari halaman workspace story, tersedia tombol "Export PDF" (full novel dengan cover + daftar isi + semua bab) dan "Export DOCX" (Word format siap edit, font Times New Roman) selama ada minimal 1 bab approved.',
+                        'suggestions' => [
+                            'Tambah watermark atau header/footer kustom pada PDF export',
+                            'Pilihan export hanya bab tertentu (range bab) di full novel export',
+                        ],
+                    ],
+                    [
+                        'name' => 'Export DOCX (Word)',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Export full novel ke format .docx menggunakan PHPWord. Mencakup cover page (judul, genre, sinopsis), setiap bab dalam section terpisah dengan page break, font Times New Roman 12pt, line height 1.9. File langsung terdownload dengan nama otomatis dari judul novel.',
+                        'suggestions' => [
+                            'Tambah nomor halaman otomatis pada DOCX export',
+                            'Opsi pilih font (Georgia / Times New Roman) saat export',
+                        ],
+                    ],
+                    [
+                        'name' => 'Analitik Generasi per Story',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Section "Analitik Generasi" di workspace story (collapsed, muncul otomatis setelah ada token usage). Menampilkan: total biaya USD + breakdown per stage (Ringkasan/Outline/Konten), bar chart biaya per bab (hijau=approved, amber=pending, merah=revisi), doughnut chart distribusi token per stage, dan timeline seluruh riwayat generasi AI dengan timestamp, token in/out, dan biaya per call. Warning otomatis untuk bab yang di-generate ≥3 kali.',
+                        'suggestions' => [
+                            'Ekspor laporan biaya per story ke CSV',
+                            'Estimasi total biaya sebelum generate bulk content',
+                        ],
+                    ],
+                    [
+                        'name' => 'Edit Konten Bab Langsung (tanpa AI)',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Tombol "✎ Edit" di header panel Konten Bab (muncul untuk status ready/approved/revision_requested). Klik toggle ke mode edit: textarea besar font serif untuk mengedit langsung isi konten dan judul bab tanpa perlu generate ulang via AI. Hemat token untuk koreksi minor, typo, atau penyesuaian gaya. Saat edit mode aktif, tombol Approve/Revisi/Export otomatis tersembunyi.',
+                        'suggestions' => [
+                            'Tambah auto-save draft saat mengetik di edit mode',
+                            'Diff view: tampilkan perubahan sebelum/sesudah edit',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'version' => 'v2.2',
+                'date' => '2026-04-05',
+                'tag' => null,
+                'title' => 'Novel Generator — Phase 1: AI Pipeline, Approval Flow & Workspace',
+                'features' => [
+                    [
+                        'name' => 'AI Novel Generator (3-Stage Pipeline)',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Fitur baru untuk generate novel Indonesia berbasis AI (Claude claude-sonnet-4-6). Pipeline 3 tahap: (1) Ringkasan — AI generate overview lengkap (judul, tema, sinopsis, tokoh, plot points), (2) Outline per Bab — AI generate outline semua bab sekaligus, (3) Konten Bab — AI generate full prose per bab. Setiap output harus direview dan diapprove sebelum lanjut ke tahap berikutnya.',
+                        'suggestions' => [
+                            'Streaming output real-time agar proses terasa lebih responsif',
+                            'Preview estimasi biaya sebelum dispatch job',
+                        ],
+                    ],
+                    [
+                        'name' => 'Writing Guidelines Manager',
+                        'route' => 'admin.novel.guidelines.index',
+                        'description' => 'Kelola panduan penulisan per genre yang diinjeksikan ke setiap prompt AI. Field: gaya bahasa, POV narasi, panduan konten, arketipe karakter (JSON), catatan struktur plot, konten terlarang, target jumlah kata per bab, dan system prompt prefix. Default guideline "Drama Rumah Tangga Indonesia v1" sudah tersedia.',
+                        'suggestions' => [
+                            'Duplicate guideline untuk variasi per sub-genre',
+                            'A/B test dua guideline berbeda pada satu story',
+                        ],
+                    ],
+                    [
+                        'name' => 'Edit Langsung Ringkasan & Outline',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Ringkasan (title_draft, tema, sinopsis, general overview, karakter JSON, plot points JSON) dan Outline per bab (judul + isi outline) dapat diedit langsung tanpa trigger AI. Ideal untuk koreksi minor tanpa membuang token. Tombol "✎ Edit" muncul di samping status badge.',
+                        'suggestions' => [],
+                    ],
+                    [
+                        'name' => 'Bulk & Selected Generate Content',
+                        'route' => 'admin.novel.stories.index',
+                        'description' => 'Di Stage 3, tersedia tombol "Generate Semua (N bab)" untuk dispatch semua bab pending sekaligus, dan mode "Pilih Bab" untuk select bab-bab tertentu lalu generate hanya yang dipilih. Card grid bab menampilkan 3 state visual: approved (hijau), pending (abu-abu), dan selected (gold).',
+                        'suggestions' => [
+                            'Prioritas generate: urutkan bab yang lebih pendek outlinenya terlebih dahulu',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'version' => 'v2.1',
+                'date' => '2026-04-05',
+                'tag' => null,
                 'title' => 'User Admin — Edit, Profil & Super Admin Protection',
                 'features' => [
                     [

@@ -9,9 +9,27 @@
 @endsection
 
 @section('header-right')
-<div class="flex items-center gap-2 text-xs font-mono" style="color: #8a7f9a;">
-    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-    {{ number_format($story->total_input_tokens + $story->total_output_tokens) }} tokens
+@php
+    $totalTokens = $story->total_input_tokens + $story->total_output_tokens;
+    $totalCost = ($story->total_input_tokens * 3 + $story->total_output_tokens * 15) / 1_000_000;
+@endphp
+<div class="flex items-center gap-3">
+    @if($story->creator)
+    <div class="flex items-center gap-1.5 text-xs" style="color: #8a7f9a;">
+        <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold" style="background: rgba(124,92,191,0.25); color: #a688e0;">
+            {{ strtoupper(substr($story->creator->name, 0, 1)) }}
+        </div>
+        <span>{{ $story->creator->name }}</span>
+    </div>
+    @endif
+    @if($totalTokens > 0)
+    <div class="flex items-center gap-1.5 text-xs font-mono" style="color: #8a7f9a;">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        {{ number_format($totalTokens) }} tokens
+        <span style="color: rgba(212,160,74,0.7);">·</span>
+        <span style="color: #d4a04a;">${{ number_format($totalCost, 4) }}</span>
+    </div>
+    @endif
 </div>
 @endsection
 
@@ -77,65 +95,120 @@
 
         @if($story->status === 'overview_ready' || $story->status === 'overview_approved')
         {{-- Overview ready for review --}}
-        <div class="space-y-5">
+        <div class="space-y-5" x-data="{ editMode: false }">
             <div class="novel-card p-6">
                 <div class="flex items-center justify-between mb-5">
                     <h2 class="font-mono text-base font-semibold" style="color: #d4a04a;">📖 Gambaran Umum Cerita</h2>
-                    @if($story->status === 'overview_approved')
-                        <span class="text-xs px-2.5 py-1 rounded-full font-mono badge-approved">✓ Disetujui</span>
+                    <div class="flex items-center gap-2">
+                        @if($story->status === 'overview_approved')
+                            <span class="text-xs px-2.5 py-1 rounded-full font-mono badge-approved">✓ Disetujui</span>
+                        @endif
+                        <button @click="editMode = !editMode"
+                            class="btn-ghost text-xs flex items-center gap-1"
+                            :style="editMode ? 'border-color: rgba(212,160,74,0.4); color: #d4a04a;' : ''">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <span x-text="editMode ? 'Batal' : 'Edit Langsung'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- VIEW MODE --}}
+                <div x-show="!editMode">
+                    <div class="grid grid-cols-2 gap-4 mb-5">
+                        <div>
+                            <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">JUDUL DRAFT</p>
+                            <p class="font-serif font-medium text-base" style="color: #e8e0d0;">{{ $story->title_draft ?? '—' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">TEMA</p>
+                            <p class="text-sm" style="color: #e8e0d0;">{{ $story->theme ?? '—' }}</p>
+                        </div>
+                    </div>
+
+                    @if($story->synopsis)
+                    <div class="mb-5">
+                        <p class="text-xs font-mono mb-2" style="color: #8a7f9a;">SINOPSIS</p>
+                        <div class="prose-novel text-sm">
+                            {!! nl2br(e($story->synopsis)) !!}
+                        </div>
+                    </div>
+                    @endif
+
+                    @if($story->characters)
+                    <div class="mb-5">
+                        <p class="text-xs font-mono mb-3" style="color: #8a7f9a;">TOKOH-TOKOH</p>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($story->characters as $char)
+                            <div class="px-3 py-2 rounded-xl" style="background: rgba(212,160,74,0.06); border: 1px solid rgba(212,160,74,0.12);">
+                                <p class="text-xs font-semibold" style="color: #d4a04a;">{{ $char['name'] ?? '' }}</p>
+                                <p class="text-[10px]" style="color: #8a7f9a;">{{ $char['role'] ?? '' }}</p>
+                                @if(!empty($char['description']))
+                                    <p class="text-xs mt-1" style="color: #e8e0d0; max-width: 20ch;">{{ Str::limit($char['description'], 80) }}</p>
+                                @endif
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+
+                    @if($story->plot_points)
+                    <div>
+                        <p class="text-xs font-mono mb-3" style="color: #8a7f9a;">PLOT TWIST KUNCI</p>
+                        <div class="space-y-2">
+                            @foreach($story->plot_points as $pp)
+                            <div class="flex items-start gap-3 text-sm">
+                                <span class="font-mono text-xs px-2 py-0.5 rounded flex-shrink-0 mt-0.5" style="background: rgba(212,160,74,0.1); color: #d4a04a;">Ch.{{ $pp['chapter'] ?? '?' }}</span>
+                                <p style="color: #e8e0d0;">{{ $pp['event'] ?? '' }}</p>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
                     @endif
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-5">
-                    <div>
-                        <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">JUDUL DRAFT</p>
-                        <p class="font-serif font-medium text-base" style="color: #e8e0d0;">{{ $story->title_draft ?? '—' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">TEMA</p>
-                        <p class="text-sm" style="color: #e8e0d0;">{{ $story->theme ?? '—' }}</p>
-                    </div>
-                </div>
-
-                @if($story->synopsis)
-                <div class="mb-5">
-                    <p class="text-xs font-mono mb-2" style="color: #8a7f9a;">SINOPSIS</p>
-                    <div class="prose-novel text-sm">
-                        {!! nl2br(e($story->synopsis)) !!}
-                    </div>
-                </div>
-                @endif
-
-                @if($story->characters)
-                <div class="mb-5">
-                    <p class="text-xs font-mono mb-3" style="color: #8a7f9a;">TOKOH-TOKOH</p>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach($story->characters as $char)
-                        <div class="px-3 py-2 rounded-xl" style="background: rgba(212,160,74,0.06); border: 1px solid rgba(212,160,74,0.12);">
-                            <p class="text-xs font-semibold" style="color: #d4a04a;">{{ $char['name'] ?? '' }}</p>
-                            <p class="text-[10px]" style="color: #8a7f9a;">{{ $char['role'] ?? '' }}</p>
-                            @if(!empty($char['description']))
-                                <p class="text-xs mt-1" style="color: #e8e0d0; max-width: 20ch;">{{ Str::limit($char['description'], 80) }}</p>
-                            @endif
+                {{-- EDIT MODE --}}
+                <div x-show="editMode" x-cloak>
+                    <form method="POST" action="{{ route('admin.novel.stories.update-overview', $story) }}" class="space-y-4">
+                        @csrf @method('PATCH')
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-mono block mb-1" style="color: #8a7f9a;">JUDUL DRAFT</label>
+                                <input type="text" name="title_draft" value="{{ old('title_draft', $story->title_draft) }}"
+                                    class="novel-input text-sm font-serif">
+                            </div>
+                            <div>
+                                <label class="text-xs font-mono block mb-1" style="color: #8a7f9a;">TEMA</label>
+                                <input type="text" name="theme" value="{{ old('theme', $story->theme) }}"
+                                    class="novel-input text-sm">
+                            </div>
                         </div>
-                        @endforeach
-                    </div>
-                </div>
-                @endif
-
-                @if($story->plot_points)
-                <div>
-                    <p class="text-xs font-mono mb-3" style="color: #8a7f9a;">PLOT TWIST KUNCI</p>
-                    <div class="space-y-2">
-                        @foreach($story->plot_points as $pp)
-                        <div class="flex items-start gap-3 text-sm">
-                            <span class="font-mono text-xs px-2 py-0.5 rounded flex-shrink-0 mt-0.5" style="background: rgba(212,160,74,0.1); color: #d4a04a;">Ch.{{ $pp['chapter'] ?? '?' }}</span>
-                            <p style="color: #e8e0d0;">{{ $pp['event'] ?? '' }}</p>
+                        <div>
+                            <label class="text-xs font-mono block mb-1" style="color: #8a7f9a;">SINOPSIS</label>
+                            <textarea name="synopsis" class="novel-input text-sm resize-y" rows="5">{{ old('synopsis', $story->synopsis) }}</textarea>
                         </div>
-                        @endforeach
-                    </div>
+                        <div>
+                            <label class="text-xs font-mono block mb-1" style="color: #8a7f9a;">OVERVIEW UMUM</label>
+                            <textarea name="general_overview" class="novel-input text-sm resize-y" rows="4">{{ old('general_overview', $story->general_overview) }}</textarea>
+                        </div>
+                        <div>
+                            <label class="text-xs font-mono block mb-1" style="color: #8a7f9a;">TOKOH (JSON)</label>
+                            <textarea name="characters" class="novel-input text-xs resize-y font-mono" rows="6"
+                                style="font-size: 11px;">{{ old('characters', json_encode($story->characters, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) }}</textarea>
+                        </div>
+                        <div>
+                            <label class="text-xs font-mono block mb-1" style="color: #8a7f9a;">PLOT POINTS (JSON)</label>
+                            <textarea name="plot_points" class="novel-input text-xs resize-y font-mono" rows="6"
+                                style="font-size: 11px;">{{ old('plot_points', json_encode($story->plot_points, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) }}</textarea>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="submit" class="btn-gold text-sm flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Simpan Perubahan
+                            </button>
+                            <button type="button" @click="editMode = false" class="btn-ghost text-sm">Batal</button>
+                        </div>
+                    </form>
                 </div>
-                @endif
             </div>
 
             {{-- Approval bar --}}
@@ -219,12 +292,12 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 @foreach($story->chapters as $chapter)
                 <a href="{{ route('admin.novel.chapters.show', [$story, $chapter]) }}"
-                    class="block p-3 rounded-xl transition-all cursor-pointer"
-                    style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);"
+                    class="block p-3 rounded-xl"
+                    style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); transition: border-color 0.15s;"
                     onmouseover="this.style.borderColor='rgba(212,160,74,0.3)'"
-                    onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+                    onmouseout="this.style.borderColor='rgba(255,255,255,0.09)'">
                     <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">Bab {{ $chapter->chapter_number }}</p>
-                    <p class="text-xs font-medium mb-2" style="color: #e8e0d0; line-height: 1.4;">{{ Str::limit($chapter->title ?? 'Belum ada judul', 40) }}</p>
+                    <p class="text-xs font-medium mb-2.5" style="color: #e8e0d0; line-height: 1.4;">{{ Str::limit($chapter->title ?? 'Belum ada judul', 40) }}</p>
                     <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->outline_status }}">{{ $chapter->outline_status }}</span>
                 </a>
                 @endforeach
@@ -256,29 +329,150 @@
 
     {{-- =================== STAGE 3: CONTENT =================== --}}
     @else
-        <div class="novel-card p-5 mb-5">
+        @php
+            $approvedCount = $story->chapters->where('content_status', 'approved')->count();
+            $generatingCount = $story->chapters->where('content_status', 'generating')->count();
+            $total = $story->chapters->count();
+            $pendingChapters = $story->chapters->filter(fn($c) => in_array($c->content_status, ['pending','failed','revision_requested']) && $c->outline_status === 'approved');
+        @endphp
+        <div class="novel-card p-5 mb-5" x-data="{ selectedIds: [], selectMode: false }">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="font-mono text-base font-semibold" style="color: #d4a04a;">Konten Bab</h2>
-                @php
-                    $approvedCount = $story->chapters->where('content_status', 'approved')->count();
-                    $total = $story->chapters->count();
-                @endphp
-                <span class="text-xs font-mono" style="color: #8a7f9a;">{{ $approvedCount }}/{{ $total }} bab approved</span>
+                <div class="flex items-center gap-2">
+                    @if($generatingCount > 0)
+                        <span class="text-xs font-mono badge-generating px-2 py-0.5 rounded-full">⟳ {{ $generatingCount }} generating</span>
+                    @endif
+                    <span class="text-xs font-mono" style="color: #8a7f9a;">{{ $approvedCount }}/{{ $total }} approved</span>
+                </div>
             </div>
+
+            {{-- Bulk action bar --}}
+            @if($pendingChapters->count() > 0)
+            <div class="flex items-center gap-2 mb-4 flex-wrap">
+                {{-- Generate All --}}
+                <form method="POST" action="{{ route('admin.novel.stories.generate-bulk-content', $story) }}" class="inline">
+                    @csrf
+                    <input type="hidden" name="chapter_ids[]" value="all">
+                    <button type="submit" class="btn-gold text-xs flex items-center gap-1.5"
+                        onclick="return confirm('Generate konten untuk semua {{ $pendingChapters->count() }} bab yang belum selesai?')">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Generate Semua ({{ $pendingChapters->count() }} bab)
+                    </button>
+                </form>
+
+                {{-- Generate Selected toggle --}}
+                <button @click="selectMode = !selectMode; if(!selectMode) selectedIds = []"
+                    class="btn-ghost text-xs flex items-center gap-1.5"
+                    :style="selectMode ? 'border-color: rgba(212,160,74,0.4); color: #d4a04a;' : ''">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    <span x-text="selectMode ? 'Batal Pilih' : 'Pilih Bab'"></span>
+                </button>
+
+                {{-- Submit selected --}}
+                <template x-if="selectMode && selectedIds.length > 0">
+                    <form method="POST" action="{{ route('admin.novel.stories.generate-bulk-content', $story) }}" id="bulk-form">
+                        @csrf
+                        <template x-for="id in selectedIds" :key="id">
+                            <input type="hidden" name="chapter_ids[]" :value="id">
+                        </template>
+                        <button type="submit" class="btn-outline text-xs flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Generate Terpilih (<span x-text="selectedIds.length"></span>)
+                        </button>
+                    </form>
+                </template>
+            </div>
+            @endif
+
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 @foreach($story->chapters as $chapter)
-                <a href="{{ route('admin.novel.chapters.show', [$story, $chapter]) }}"
-                    class="block p-3 rounded-xl transition-all cursor-pointer"
-                    style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);"
-                    onmouseover="this.style.borderColor='rgba(212,160,74,0.3)'"
-                    onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-                    <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">Bab {{ $chapter->chapter_number }}</p>
-                    <p class="text-xs font-medium mb-2" style="color: #e8e0d0; line-height: 1.4;">{{ Str::limit($chapter->title ?? 'Belum ada judul', 40) }}</p>
-                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->content_status }}">{{ $chapter->content_status }}</span>
-                </a>
+                @php
+                    $canSelect = in_array($chapter->content_status, ['pending','failed','revision_requested']) && $chapter->outline_status === 'approved';
+                    $isApproved = $chapter->content_status === 'approved';
+                    $chId = $chapter->id;
+                @endphp
+
+                <div class="rounded-xl p-3 select-none cursor-pointer"
+                    :style="(function() {
+                        const selected = {{ $canSelect ? 'true' : 'false' }} && selectedIds.includes('{{ $chId }}');
+                        const base = 'transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;';
+                        if (selected) return base + 'background: rgba(212,160,74,0.15); border: 1px solid rgba(212,160,74,0.7); box-shadow: 0 0 0 3px rgba(212,160,74,0.1);';
+                        {{ $isApproved ? 'return base + \'background: rgba(45,106,79,0.18); border: 1px solid rgba(149,213,178,0.25);\';' : 'return base + \'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);\';' }}
+                    })()"
+                    @mouseenter="if({{ $canSelect ? 'true' : 'false' }} && !selectedIds.includes('{{ $chId }}')) $el.style.borderColor = 'rgba(212,160,74,0.3)'"
+                    @mouseleave="if({{ $canSelect ? 'true' : 'false' }} && !selectedIds.includes('{{ $chId }}')) $el.style.borderColor = '{{ $isApproved ? 'rgba(149,213,178,0.25)' : 'rgba(255,255,255,0.09)' }}'"
+                    @click="{{ $canSelect ? 'if(selectMode) { const idx=selectedIds.indexOf(\'' . $chId . '\'); idx>=0 ? selectedIds.splice(idx,1) : selectedIds.push(\'' . $chId . '\'); } else { window.location=\'' . route('admin.novel.chapters.show', [$story, $chapter]) . '\'; }' : 'window.location=\'' . route('admin.novel.chapters.show', [$story, $chapter]) . '\'' }}">
+
+                    {{-- Top row: chapter label + checkbox (select mode) or status icon (approved) --}}
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-mono" style="color: {{ $isApproved ? '#95d5b2' : '#8a7f9a' }};">
+                            Bab {{ $chapter->chapter_number }}
+                        </span>
+
+                        @if($isApproved)
+                        {{-- Approved indicator — always visible --}}
+                        <div class="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(149,213,178,0.2);">
+                            <svg class="w-2.5 h-2.5" style="color: #95d5b2;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        @elseif($canSelect)
+                        {{-- Checkbox — only visible in select mode --}}
+                        <div x-show="selectMode"
+                            class="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
+                            :style="selectedIds.includes('{{ $chId }}')
+                                ? 'background: #d4a04a; border: 2px solid #d4a04a;'
+                                : 'border: 2px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.03);'">
+                            <svg x-show="selectedIds.includes('{{ $chId }}')" class="w-2.5 h-2.5" style="color: #0e0c12;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        @endif
+                    </div>
+
+                    {{-- Title --}}
+                    <p class="text-xs font-medium mb-2.5" style="color: {{ $isApproved ? 'rgba(232,224,208,0.7)' : '#e8e0d0' }}; line-height: 1.4;">
+                        {{ Str::limit($chapter->title ?? 'Belum ada judul', 40) }}
+                    </p>
+
+                    {{-- Status badge --}}
+                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->content_status }}">
+                        {{ $chapter->content_status }}
+                    </span>
+                </div>
+
                 @endforeach
             </div>
         </div>
+    @endif
+
+    {{-- Export buttons (shown when there are approved chapters) --}}
+    @if($story->chapters->where('content_status', 'approved')->count() > 0)
+    <div class="novel-card p-4 mb-5">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <p class="font-mono text-sm font-semibold mb-0.5" style="color: #d4a04a;">Export Novel</p>
+                <p class="text-xs" style="color: #5a5368;">{{ $story->chapters->where('content_status', 'approved')->count() }} bab approved siap diexport</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('admin.novel.stories.export-pdf', $story) }}" target="_blank"
+                    class="btn-gold text-xs flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Export PDF
+                </a>
+                <a href="{{ route('admin.novel.stories.export-docx', $story) }}"
+                    class="btn-ghost text-xs flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Export DOCX
+                </a>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Analytics Section --}}
+    @if($story->total_input_tokens > 0)
+    @include('admin.novel.stories._analytics', ['story' => $story, 'analyticsData' => $analyticsData ?? []])
     @endif
 
     {{-- Delete button --}}
@@ -304,7 +498,8 @@ function storyWorkspace(storyId, initialStatus) {
         pollInterval: null,
 
         init() {
-            const pendingStatuses = ['overview_pending', 'outline_pending'];
+            // 'draft' = job dispatched but worker hasn't picked it up yet
+            const pendingStatuses = ['draft', 'overview_pending', 'outline_pending'];
             if (pendingStatuses.includes(this.status)) {
                 this.startPolling();
             }
