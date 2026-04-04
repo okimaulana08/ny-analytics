@@ -1475,8 +1475,7 @@ HTML;
         $revenueMap = collect($rows)->keyBy('date');
 
         // Marketing costs from SQLite — use raw query builder so date keys stay as 'Y-m-d' strings
-        $costs = DB::connection('sqlite')
-            ->table('daily_revenue_costs')
+        $costs = DB::table('daily_revenue_costs')
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
             ->pluck('marketing_cost', 'date')
@@ -1755,8 +1754,8 @@ HTML;
 
         // Build $stats object that the view expects
         $stats = (object) [
-            'content_count'  => count($contents),
-            'total_reads'    => array_sum(array_column($contents, 'read_count')),
+            'content_count' => count($contents),
+            'total_reads' => array_sum(array_column($contents, 'read_count')),
             'unique_readers' => array_sum(array_column($contents, 'unique_readers')),
             'paying_readers' => (int) ($paying_readers->cnt ?? 0),
         ];

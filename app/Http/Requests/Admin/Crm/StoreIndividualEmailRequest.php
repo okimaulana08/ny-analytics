@@ -16,7 +16,7 @@ class StoreIndividualEmailRequest extends FormRequest
         return [
             'recipient_email' => ['required', 'email', 'max:255'],
             'recipient_name' => ['nullable', 'string', 'max:255'],
-            'template_id' => ['required', 'integer', 'exists:sqlite.email_templates,id'],
+            'template_id' => ['required', 'integer', 'exists:email_templates,id'],
             'subject' => ['required', 'string', 'max:255'],
             'scheduled_at' => ['nullable', 'date', 'after:now'],
         ];

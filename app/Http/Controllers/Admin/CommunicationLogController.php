@@ -25,8 +25,7 @@ class CommunicationLogController extends Controller
         // 1. Email Trigger Logs
         if (! $channel || $channel === 'Email') {
             if (! $subType || $subType === 'Trigger') {
-                $q = DB::connection('sqlite')
-                    ->table('email_trigger_logs as etl')
+                $q = DB::table('email_trigger_logs as etl')
                     ->join('email_triggers as et', 'et.id', '=', 'etl.email_trigger_id')
                     ->select(
                         'etl.sent_at',
@@ -51,8 +50,7 @@ class CommunicationLogController extends Controller
             }
 
             if (! $subType || $subType === 'Broadcast') {
-                $q = DB::connection('sqlite')
-                    ->table('email_campaign_logs as ecl')
+                $q = DB::table('email_campaign_logs as ecl')
                     ->join('email_campaigns as ec', 'ec.id', '=', 'ecl.email_campaign_id')
                     ->select(
                         'ecl.sent_at',
@@ -80,8 +78,7 @@ class CommunicationLogController extends Controller
         // 2. WA Trigger Logs
         if (! $channel || $channel === 'WA') {
             if (! $subType || $subType === 'Trigger') {
-                $q = DB::connection('sqlite')
-                    ->table('wa_trigger_logs as wtl')
+                $q = DB::table('wa_trigger_logs as wtl')
                     ->join('wa_triggers as wt', 'wt.id', '=', 'wtl.wa_trigger_id')
                     ->select(
                         'wtl.sent_at',
@@ -105,8 +102,7 @@ class CommunicationLogController extends Controller
             }
 
             if (! $subType || $subType === 'Notifikasi') {
-                $q = DB::connection('sqlite')
-                    ->table('wa_notifications')
+                $q = DB::table('wa_notifications')
                     ->select(
                         'sent_at',
                         DB::raw('null as user_id'),
@@ -151,8 +147,8 @@ class CommunicationLogController extends Controller
             foreach ($txRows as $tx) {
                 $transactionUserMap[$tx->transaction_id] = [
                     'user_id' => $tx->user_id,
-                    'name'    => $tx->name,
-                    'phone'   => $tx->phone_number,
+                    'name' => $tx->name,
+                    'phone' => $tx->phone_number,
                 ];
             }
         }
@@ -174,7 +170,7 @@ class CommunicationLogController extends Controller
             if ($row->channel === 'WA' && $row->sub_type === 'Notifikasi') {
                 // Resolve transaction UUID → user info
                 $info = $transactionUserMap[$row->identifier] ?? null;
-                $row->user_id   = $info['user_id'] ?? null;
+                $row->user_id = $info['user_id'] ?? null;
                 $row->user_name = $info['name'] ?? null;
                 $row->identifier = $info['phone'] ?? $row->identifier;
             } else {
@@ -224,8 +220,7 @@ class CommunicationLogController extends Controller
         $onlyOver = $request->boolean('only_over');
 
         // --- Email counts per email address ---
-        $emailRows = DB::connection('sqlite')
-            ->table(DB::raw('(
+        $emailRows = DB::table(DB::raw('(
                 SELECT recipient_email as contact, sent_at FROM email_trigger_logs WHERE sent_at IS NOT NULL
                 UNION ALL
                 SELECT recipient_email as contact, sent_at FROM email_campaign_logs WHERE sent_at IS NOT NULL
@@ -241,8 +236,7 @@ class CommunicationLogController extends Controller
             ->keyBy('contact');
 
         // --- WA counts per phone ---
-        $waRows = DB::connection('sqlite')
-            ->table('wa_trigger_logs')
+        $waRows = DB::table('wa_trigger_logs')
             ->select(
                 'phone as contact',
                 'user_id',

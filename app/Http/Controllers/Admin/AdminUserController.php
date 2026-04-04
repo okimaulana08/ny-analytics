@@ -27,7 +27,7 @@ class AdminUserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:100',
-            'email' => 'required|email|unique:sqlite.admin_users,email',
+            'email' => 'required|email|unique:admin_users,email',
             'password' => 'required|min:8|confirmed',
         ]);
 
@@ -55,7 +55,7 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:100',
             'email' => [
                 'required', 'email',
-                Rule::unique('sqlite.admin_users', 'email')->ignore($adminUser->id),
+                Rule::unique('admin_users', 'email')->ignore($adminUser->id),
             ],
         ];
 

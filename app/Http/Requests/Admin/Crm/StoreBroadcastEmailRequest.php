@@ -15,8 +15,8 @@ class StoreBroadcastEmailRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'group_id' => ['required', 'integer', 'exists:sqlite.email_groups,id'],
-            'template_id' => ['required', 'integer', 'exists:sqlite.email_templates,id'],
+            'group_id' => ['required', 'integer', 'exists:email_groups,id'],
+            'template_id' => ['required', 'integer', 'exists:email_templates,id'],
             'subject' => ['required', 'string', 'max:255'],
             'scheduled_at' => ['nullable', 'date', 'after:now'],
             'extra_email' => ['nullable', 'array'],
