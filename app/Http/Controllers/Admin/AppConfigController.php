@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppConfig;
+use Database\Seeders\SystemConfigSeeder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -26,5 +27,12 @@ class AppConfigController extends Controller
         $config->update(['value' => $request->input('value')]);
 
         return back()->with('success', "Config \"{$config->label}\" berhasil diperbarui.");
+    }
+
+    public function seedDefaults(): RedirectResponse
+    {
+        (new SystemConfigSeeder())->run();
+
+        return back()->with('success', 'Default config berhasil di-seed (' . AppConfig::count() . ' config aktif).');
     }
 }

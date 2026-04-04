@@ -129,19 +129,59 @@ class CommunicationLogController extends Controller
             }
         }
 
-        // Enrich user names from novel DB
+        // Collect transaction_ids from WA Notifikasi rows for enrichment
+        $transactionIds = $rows
+            ->where('channel', 'WA')
+            ->where('sub_type', 'Notifikasi')
+            ->pluck('identifier')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $transactionUserMap = [];  // transaction_id → [user_id, phone, name]
+        if ($transactionIds->isNotEmpty()) {
+            $txRows = DB::connection('novel')
+                ->table('transactions as t')
+                ->join('users as u', 'u.id', '=', 't.user_id')
+                ->leftJoin('profile as p', 'p.user_id', '=', 'u.id')
+                ->whereIn('t.id', $transactionIds->toArray())
+                ->select('t.id as transaction_id', 'u.id as user_id', 'u.name', 'p.phone_number')
+                ->get();
+
+            foreach ($txRows as $tx) {
+                $transactionUserMap[$tx->transaction_id] = [
+                    'user_id' => $tx->user_id,
+                    'name'    => $tx->name,
+                    'phone'   => $tx->phone_number,
+                ];
+            }
+        }
+
+        // Enrich user names from novel DB (for email trigger & WA trigger rows)
         $userIds = $rows->pluck('user_id')->filter()->unique()->values();
         $userMap = [];
         if ($userIds->isNotEmpty()) {
             $userMap = DB::connection('novel')
                 ->table('users')
-                ->whereIn('id', $userIds->toArray())
-                ->pluck('name', 'id')
-                ->toArray();
+                ->join('profile', 'profile.user_id', '=', 'users.id')
+                ->whereIn('users.id', $userIds->toArray())
+                ->select('users.id', 'users.name', 'profile.phone_number')
+                ->get()
+                ->keyBy('id');
         }
 
-        $rows = $rows->map(function ($row) use ($userMap) {
-            $row->user_name = $row->user_id ? ($userMap[$row->user_id] ?? null) : null;
+        $rows = $rows->map(function ($row) use ($userMap, $transactionUserMap) {
+            if ($row->channel === 'WA' && $row->sub_type === 'Notifikasi') {
+                // Resolve transaction UUID → user info
+                $info = $transactionUserMap[$row->identifier] ?? null;
+                $row->user_id   = $info['user_id'] ?? null;
+                $row->user_name = $info['name'] ?? null;
+                $row->identifier = $info['phone'] ?? $row->identifier;
+            } else {
+                $u = $row->user_id ? ($userMap[$row->user_id] ?? null) : null;
+                $row->user_name = $u?->name ?? null;
+                // Enrich WA trigger identifier (phone) with user name if available
+            }
 
             return $row;
         });

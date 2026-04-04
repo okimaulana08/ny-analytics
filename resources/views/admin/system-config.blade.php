@@ -16,6 +16,16 @@
             Halaman ini hanya untuk parameter non-sensitif. Jangan simpan API key, password, atau credential di sini.
         </p>
     </div>
+    {{-- Seed button --}}
+    <form method="POST" action="{{ route('admin.system-config.seed-defaults') }}">
+        @csrf
+        <button type="submit"
+            class="h-9 px-4 inline-flex items-center gap-2 text-xs font-semibold rounded-xl border border-violet-200 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-colors whitespace-nowrap"
+            onclick="return confirm('Seed semua default config? Data yang sudah ada tidak akan diubah.')">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Seed Default Config
+        </button>
+    </form>
 </div>
 
 @if(session('success'))
@@ -31,6 +41,15 @@
 @endif
 
 <div class="space-y-6">
+    @if($configs->isEmpty())
+    <div class="flat-card flex flex-col items-center justify-center py-20 text-slate-400">
+        <svg class="w-12 h-12 mb-4 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <p class="text-sm font-medium">Belum ada config tersedia.</p>
+        <p class="text-xs mt-1">Klik tombol <strong class="text-violet-500">Seed Default Config</strong> di atas untuk mengisi data awal.</p>
+    </div>
+    @else
     @foreach($configs as $group => $items)
     <div class="flat-card overflow-hidden">
 
@@ -124,6 +143,7 @@
         </table>
     </div>
     @endforeach
+    @endif
 </div>
 
 @endsection

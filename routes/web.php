@@ -121,4 +121,5 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
     Route::get('/communication-logs/frequency', [CommunicationLogController::class, 'frequencyMonitor'])->name('communication-logs.frequency');
     Route::get('/system-config', [AppConfigController::class, 'index'])->name('system-config');
     Route::patch('/system-config/{config}', [AppConfigController::class, 'update'])->name('system-config.update');
+    Route::post('/system-config/seed-defaults', [AppConfigController::class, 'seedDefaults'])->name('system-config.seed-defaults');
 });
