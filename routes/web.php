@@ -15,6 +15,9 @@ use App\Http\Controllers\Admin\Crm\IndividualEmailController;
 use App\Http\Controllers\Admin\Crm\ScheduledReportController;
 use App\Http\Controllers\Admin\Crm\WaTriggerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\Novel\NovelChapterController;
+use App\Http\Controllers\Admin\Novel\NovelStoryController;
+use App\Http\Controllers\Admin\Novel\NovelWritingGuidelineController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\ReportController;
@@ -128,4 +131,31 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
     Route::get('/system-config', [AppConfigController::class, 'index'])->name('system-config');
     Route::patch('/system-config/{config}', [AppConfigController::class, 'update'])->name('system-config.update');
     Route::post('/system-config/seed-defaults', [AppConfigController::class, 'seedDefaults'])->name('system-config.seed-defaults');
+
+    // Novel Generator
+    Route::prefix('novel')->name('novel.')->group(function () {
+        // Stories
+        Route::get('/stories', [NovelStoryController::class, 'index'])->name('stories.index');
+        Route::get('/stories/create', [NovelStoryController::class, 'create'])->name('stories.create');
+        Route::post('/stories', [NovelStoryController::class, 'store'])->name('stories.store');
+        Route::get('/stories/{story}', [NovelStoryController::class, 'show'])->name('stories.show');
+        Route::get('/stories/{story}/status', [NovelStoryController::class, 'status'])->name('stories.status');
+        Route::post('/stories/{story}/approve-overview', [NovelStoryController::class, 'approveOverview'])->name('stories.approve-overview');
+        Route::post('/stories/{story}/reject-overview', [NovelStoryController::class, 'rejectOverview'])->name('stories.reject-overview');
+        Route::post('/stories/{story}/regenerate-overview', [NovelStoryController::class, 'regenerateOverview'])->name('stories.regenerate-overview');
+        Route::post('/stories/{story}/generate-outlines', [NovelStoryController::class, 'dispatchOutlines'])->name('stories.generate-outlines');
+        Route::post('/stories/{story}/approve-outlines', [NovelStoryController::class, 'approveAllOutlines'])->name('stories.approve-outlines');
+        Route::delete('/stories/{story}', [NovelStoryController::class, 'destroy'])->name('stories.destroy');
+
+        // Chapters (nested under stories)
+        Route::get('/stories/{story}/chapters/{chapter}', [NovelChapterController::class, 'show'])->name('chapters.show');
+        Route::post('/stories/{story}/chapters/{chapter}/approve-outline', [NovelChapterController::class, 'approveOutline'])->name('chapters.approve-outline');
+        Route::post('/stories/{story}/chapters/{chapter}/regenerate-outline', [NovelChapterController::class, 'regenerateOutline'])->name('chapters.regenerate-outline');
+        Route::post('/stories/{story}/chapters/{chapter}/generate-content', [NovelChapterController::class, 'generateContent'])->name('chapters.generate-content');
+        Route::post('/stories/{story}/chapters/{chapter}/approve-content', [NovelChapterController::class, 'approveContent'])->name('chapters.approve-content');
+        Route::post('/stories/{story}/chapters/{chapter}/request-revision', [NovelChapterController::class, 'requestRevision'])->name('chapters.request-revision');
+
+        // Writing Guidelines
+        Route::resource('guidelines', NovelWritingGuidelineController::class)->except(['show']);
+    });
 });

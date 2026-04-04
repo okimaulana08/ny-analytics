@@ -177,6 +177,48 @@ class SystemConfigSeeder extends Seeder
                 'type' => 'integer',
                 'description' => 'Jumlah konten yang ditampilkan di Top Content report dalam Scheduled Reports.',
             ],
+
+            // --- Novel Generator ---
+            [
+                'group' => 'Novel Generator',
+                'label' => 'Model AI — Ringkasan',
+                'key' => 'novel.overview_model',
+                'value' => 'claude-sonnet-4-6',
+                'type' => 'string',
+                'description' => 'Claude model yang digunakan untuk generate gambaran umum cerita (Stage 1).',
+            ],
+            [
+                'group' => 'Novel Generator',
+                'label' => 'Model AI — Outline',
+                'key' => 'novel.outline_model',
+                'value' => 'claude-sonnet-4-6',
+                'type' => 'string',
+                'description' => 'Claude model yang digunakan untuk generate outline semua bab (Stage 2).',
+            ],
+            [
+                'group' => 'Novel Generator',
+                'label' => 'Model AI — Konten Bab',
+                'key' => 'novel.content_model',
+                'value' => 'claude-sonnet-4-6',
+                'type' => 'string',
+                'description' => 'Claude model yang digunakan untuk generate konten bab penuh (Stage 3).',
+            ],
+            [
+                'group' => 'Novel Generator',
+                'label' => 'Max Output Tokens — Konten',
+                'key' => 'novel.content_max_tokens',
+                'value' => '4096',
+                'type' => 'integer',
+                'description' => 'Batas token output untuk generate konten bab. Kurangi jika konten terlalu panjang.',
+            ],
+            [
+                'group' => 'Novel Generator',
+                'label' => 'Target Jumlah Kata per Bab',
+                'key' => 'novel.target_word_count',
+                'value' => '2000',
+                'type' => 'integer',
+                'description' => 'Target jumlah kata yang diinstruksikan ke AI saat generate konten bab.',
+            ],
         ];
 
         foreach ($configs as $config) {

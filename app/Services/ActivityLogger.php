@@ -73,6 +73,23 @@ class ActivityLogger
 
         // System Config
         'admin.system-config.update' => ['System Config', 'Update'],
+
+        // Novel Generator
+        'admin.novel.stories.store' => ['Novel Generator', 'Create Story'],
+        'admin.novel.stories.destroy' => ['Novel Generator', 'Delete Story'],
+        'admin.novel.stories.approve-overview' => ['Novel Generator', 'Approve Overview'],
+        'admin.novel.stories.reject-overview' => ['Novel Generator', 'Reject Overview'],
+        'admin.novel.stories.regenerate-overview' => ['Novel Generator', 'Regenerate Overview'],
+        'admin.novel.stories.generate-outlines' => ['Novel Generator', 'Generate Outlines'],
+        'admin.novel.stories.approve-outlines' => ['Novel Generator', 'Approve Outlines'],
+        'admin.novel.chapters.approve-outline' => ['Novel Generator', 'Approve Chapter Outline'],
+        'admin.novel.chapters.regenerate-outline' => ['Novel Generator', 'Regenerate Outline'],
+        'admin.novel.chapters.generate-content' => ['Novel Generator', 'Generate Content'],
+        'admin.novel.chapters.approve-content' => ['Novel Generator', 'Approve Content'],
+        'admin.novel.chapters.request-revision' => ['Novel Generator', 'Request Revision'],
+        'admin.novel.guidelines.store' => ['Novel Guideline', 'Create'],
+        'admin.novel.guidelines.update' => ['Novel Guideline', 'Update'],
+        'admin.novel.guidelines.destroy' => ['Novel Guideline', 'Delete'],
     ];
 
     /** Fields to strip from payload for security/privacy. */
