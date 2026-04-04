@@ -95,16 +95,24 @@ class ReportController extends Controller
         $renewerPages = (int) ceil($renewerTotal / $renewerPerPage) ?: 1;
 
         $topRenewers = $db->select("
-            SELECT u.name, u.email, MAX(p.phone_number) AS phone_number,
+            SELECT u.id, u.name, u.email, MAX(p.phone_number) AS phone_number,
                    COUNT(t.id) AS trx_count,
                    SUM(t.total_amount) AS total_spent,
-                   MAX(mp.name) AS latest_plan
+                   MAX(mp.name) AS latest_plan,
+                   MAX(t.paid_at) AS last_paid_at,
+                   (SELECT MAX(ur.created_at) FROM user_read ur WHERE ur.user_id = u.id) AS last_read_at,
+                   (SELECT um.is_active FROM user_memberships um
+                    WHERE um.user_id = u.id
+                    ORDER BY um.created_at DESC LIMIT 1) AS is_member_active,
+                   (SELECT um.expired_at FROM user_memberships um
+                    WHERE um.user_id = u.id
+                    ORDER BY um.created_at DESC LIMIT 1) AS membership_expired_at
             FROM transactions t
             JOIN users u ON u.id = t.user_id
             JOIN membership_plans mp ON mp.id = t.plan_id
             LEFT JOIN profile p ON p.user_id = u.id
             WHERE t.status = 'paid'
-            GROUP BY t.user_id, u.name, u.email
+            GROUP BY t.user_id, u.id, u.name, u.email
             HAVING trx_count > 1
             ORDER BY trx_count DESC, total_spent DESC
             LIMIT {$renewerPerPage} OFFSET {$renewerOffset}
@@ -112,7 +120,7 @@ class ReportController extends Controller
 
         return view('admin.reports.subscription', compact(
             'kpi', 'renewalCount', 'dailyTrend',
-            'revByPlan', 'gatewayStats', 'statusBreakdown',
+            'revByPlan', 'statusBreakdown',
             'topRenewers', 'renewerPage', 'renewerPages', 'renewerTotal'
         ));
     }
