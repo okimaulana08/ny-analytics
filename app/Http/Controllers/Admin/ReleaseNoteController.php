@@ -19,9 +19,35 @@ class ReleaseNoteController extends Controller
     {
         return [
             [
-                'version' => 'v1.9',
+                'version' => 'v2.0',
                 'date' => '2026-04-04',
                 'tag' => 'latest',
+                'title' => 'Enhanced Trigger Conditions',
+                'features' => [
+                    [
+                        'name' => 'WA Trigger — 4 Kondisi',
+                        'route' => 'admin.crm.wa-triggers.index',
+                        'description' => 'Pending Payment kini punya 2 kondisi: Invoice Aktif (ada link bayar) dan Invoice Expired (kirim link pilih paket). Expiry Reminder punya 2 kondisi: Sebelum Berakhir dan Setelah Berakhir (untuk user yang sudah expired tapi belum renew). Masing-masing punya 10 default template yang diseed otomatis saat trigger dibuat.',
+                        'suggestions' => [
+                            'Tambah kondisi untuk pending payment yang sudah > 24 jam',
+                            'Notifikasi Slack/email ke admin jika tidak ada penerima dalam 3 hari berturut-turut',
+                        ],
+                    ],
+                    [
+                        'name' => 'Email Trigger — Pending Payment + After Expiry',
+                        'route' => 'admin.crm.triggers.index',
+                        'description' => 'Email trigger kini mendukung tipe Pending Payment (dengan kondisi Invoice Aktif / Invoice Expired) dan kondisi After Expiry untuk Reminder Expiry. Legacy triggers (tanpa condition) tetap berjalan normal via fallback routing.',
+                        'suggestions' => [
+                            'A/B test subject line per kondisi',
+                            'Unsubscribe link per trigger type',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'version' => 'v1.9',
+                'date' => '2026-04-04',
+                'tag' => null,
                 'title' => 'System Config',
                 'features' => [
                     [

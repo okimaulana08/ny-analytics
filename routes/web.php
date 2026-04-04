@@ -100,6 +100,7 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
         Route::delete('/campaigns/{campaign}', [CampaignHistoryController::class, 'destroy'])->name('campaigns.destroy');
 
         // Email Triggers
+        Route::get('/triggers/defaults', [EmailTriggerController::class, 'defaults'])->name('triggers.defaults');
         Route::patch('/triggers/{trigger}/toggle', [EmailTriggerController::class, 'toggle'])->name('triggers.toggle');
         Route::resource('triggers', EmailTriggerController::class)->except(['show']);
 

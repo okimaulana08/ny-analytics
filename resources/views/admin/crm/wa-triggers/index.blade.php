@@ -26,6 +26,7 @@
             <tr class="border-b border-slate-100 dark:border-white/[0.05]">
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Nama Trigger</th>
                 <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Jenis</th>
+                <th class="px-5 py-3 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Kondisi</th>
                 <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Delay</th>
                 <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Cooldown</th>
                 <th class="px-5 py-3 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Template</th>
@@ -50,6 +51,23 @@
                     <span class="badge" style="{{ $typeColors[$trigger->type] ?? '' }}">
                         {{ $trigger->typeLabel() }}
                     </span>
+                </td>
+                <td class="px-5 py-3">
+                    @php
+                        $condColors = [
+                            'invoice_active'  => 'background:#d1fae5;color:#065f46',
+                            'invoice_expired' => 'background:#fee2e2;color:#991b1b',
+                            'before_expiry'   => 'background:#e0f2fe;color:#0369a1',
+                            'after_expiry'    => 'background:#fae8ff;color:#7e22ce',
+                        ];
+                    @endphp
+                    @if($trigger->condition)
+                        <span class="badge" style="{{ $condColors[$trigger->condition] ?? '' }}">
+                            {{ $trigger->conditionLabel() }}
+                        </span>
+                    @else
+                        <span class="text-xs text-slate-400">—</span>
+                    @endif
                 </td>
                 <td class="px-5 py-3 text-center text-xs text-slate-500 dark:text-slate-400 font-mono">
                     {{ $trigger->delayLabel() }}
@@ -96,7 +114,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="8" class="px-5 py-8 text-center text-sm text-slate-400">
+                <td colspan="9" class="px-5 py-8 text-center text-sm text-slate-400">
                     Belum ada trigger WA. <a href="{{ route('admin.crm.wa-triggers.create') }}" class="text-green-500 hover:underline">Buat trigger pertama</a>.
                 </td>
             </tr>

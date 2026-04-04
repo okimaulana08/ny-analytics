@@ -49,6 +49,7 @@
                             'expiry_reminder' => 'background:#fef3c7;color:#92400e',
                             're_engagement'   => 'background:#ede9fe;color:#5b21b6',
                             'welcome_payment' => 'background:#d1fae5;color:#065f46',
+                            'pending_payment' => 'background:#ffedd5;color:#9a3412',
                         ];
                     @endphp
                     <span class="badge" style="{{ $typeColors[$trigger->trigger_type] ?? '' }}">
@@ -58,13 +59,25 @@
                 <td class="px-5 py-3 text-xs text-slate-600 dark:text-slate-300">
                     {{ $trigger->template?->name ?? '—' }}
                 </td>
-                <td class="px-5 py-3 text-center text-xs text-slate-500 dark:text-slate-400 font-mono">
-                    @if($trigger->trigger_type === 'expiry_reminder')
-                        {{ $trigger->conditions['days_before'] ?? 7 }}h sebelum expiry
+                <td class="px-5 py-3 text-center text-xs">
+                    @php
+                        $condColors = [
+                            'invoice_active'  => 'background:#d1fae5;color:#065f46',
+                            'invoice_expired' => 'background:#fee2e2;color:#991b1b',
+                            'before_expiry'   => 'background:#e0f2fe;color:#0369a1',
+                            'after_expiry'    => 'background:#fae8ff;color:#7e22ce',
+                        ];
+                    @endphp
+                    @if($trigger->condition)
+                        <span class="badge" style="{{ $condColors[$trigger->condition] ?? '' }}">
+                            {{ $trigger->conditionLabel() }}
+                        </span>
                     @elseif($trigger->trigger_type === 're_engagement')
-                        tidak aktif {{ $trigger->conditions['inactive_days'] ?? 7 }}h
+                        <span class="text-slate-400 font-mono">tidak aktif {{ $trigger->conditions['inactive_days'] ?? 7 }}h</span>
+                    @elseif($trigger->trigger_type === 'welcome_payment')
+                        <span class="text-slate-400">hari ini</span>
                     @else
-                        hari ini
+                        <span class="text-slate-400">—</span>
                     @endif
                 </td>
                 <td class="px-5 py-3 text-center text-xs text-slate-500 dark:text-slate-400 font-mono">

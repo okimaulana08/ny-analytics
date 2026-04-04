@@ -69,22 +69,15 @@
 
                 {{-- Placeholder info --}}
                 <div class="mb-4 p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/[0.05]">
-                    @if($trigger->type === 'pending_payment')
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
-                        Placeholder: <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{name}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{plan_name}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{amount}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{minutes_ago}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{payment_link}</code>
-                    </p>
-                    @else
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
-                        Placeholder: <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{name}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{plan_name}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{expired_at}</code>
-                        <code class="font-mono bg-white dark:bg-white/5 px-1 rounded">{days_left}</code>
-                    </p>
-                    @endif
+                    <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Placeholder tersedia:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach($trigger->availablePlaceholders() as $placeholder => $desc)
+                            <span title="{{ $desc }}"
+                                class="font-mono text-[10px] bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 px-1.5 py-0.5 rounded cursor-help text-slate-600 dark:text-slate-300">
+                                {{ $placeholder }}
+                            </span>
+                        @endforeach
+                    </div>
                 </div>
 
                 {{-- Template list --}}

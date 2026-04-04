@@ -7,11 +7,11 @@
 {{-- Tab nav --}}
 <div class="flex gap-1 mb-5 p-1 bg-slate-100 dark:bg-white/[0.04] rounded-xl w-fit">
     <a href="{{ route('admin.communication-logs') }}"
-        class="h-8 px-4 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm transition-all">
+        class="flex items-center h-8 px-4 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm transition-all">
         Timeline
     </a>
     <a href="{{ route('admin.communication-logs.frequency') }}"
-        class="h-8 px-4 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+        class="flex items-center h-8 px-4 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
         Frequency Monitor
     </a>
 </div>

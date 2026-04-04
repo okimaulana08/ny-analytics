@@ -48,9 +48,16 @@ class RunWaTriggersCommand extends Command
             return;
         }
 
-        $recipients = match ($trigger->type) {
-            WaTrigger::TYPE_PENDING_PAYMENT => $this->resolvePendingPayment($trigger),
-            WaTrigger::TYPE_EXPIRY_REMINDER => $this->resolveExpiryReminder($trigger),
+        // Route by condition first, fall back to type for legacy rows (condition = null)
+        $condition = $trigger->condition ?? ($trigger->type === WaTrigger::TYPE_PENDING_PAYMENT
+            ? WaTrigger::COND_INVOICE_ACTIVE
+            : WaTrigger::COND_BEFORE_EXPIRY);
+
+        $recipients = match ($condition) {
+            WaTrigger::COND_INVOICE_ACTIVE => $this->resolvePendingPayment($trigger, withInvoiceLink: true),
+            WaTrigger::COND_INVOICE_EXPIRED => $this->resolvePendingPayment($trigger, withInvoiceLink: false),
+            WaTrigger::COND_BEFORE_EXPIRY => $this->resolveBeforeExpiry($trigger),
+            WaTrigger::COND_AFTER_EXPIRY => $this->resolveAfterExpiry($trigger),
             default => [],
         };
 
@@ -109,10 +116,12 @@ class RunWaTriggersCommand extends Command
 
     /**
      * Transaksi masih pending lebih dari X menit/jam.
+     * withInvoiceLink = true  → kondisi invoice_active (invoice belum expired, ada link bayar)
+     * withInvoiceLink = false → kondisi invoice_expired (invoice sudah expired, kirim link langganan)
      *
      * @return array<int, array{user_id: string, phone: string, params: array<string, string>}>
      */
-    private function resolvePendingPayment(WaTrigger $trigger): array
+    private function resolvePendingPayment(WaTrigger $trigger, bool $withInvoiceLink = true): array
     {
         $delayMinutes = $trigger->delayInMinutes();
         $cutoff = now()->subMinutes($delayMinutes);
@@ -139,21 +148,28 @@ class RunWaTriggersCommand extends Command
             ])
             ->unique('user_id');
 
-        $paymentLink = config('app.url');
+        $subscriptionUrl = config('app.url');
 
-        return $rows->map(function ($r) use ($paymentLink) {
+        return $rows->map(function ($r) use ($withInvoiceLink, $subscriptionUrl) {
             $minutesAgo = (int) Carbon::parse($r->transaction_created_at)->diffInMinutes(now());
+
+            $params = [
+                'name' => $r->name ?? 'Kak',
+                'plan_name' => $r->plan_name ?? 'Novelya Premium',
+                'amount' => 'Rp '.number_format($r->total_amount ?? $r->price ?? 0, 0, ',', '.'),
+                'minutes_ago' => (string) $minutesAgo,
+            ];
+
+            if ($withInvoiceLink) {
+                $params['invoice_link'] = $subscriptionUrl;
+            } else {
+                $params['subscription_url'] = $subscriptionUrl;
+            }
 
             return [
                 'user_id' => (string) $r->user_id,
                 'phone' => $r->phone_number,
-                'params' => [
-                    'name' => $r->name ?? 'Kak',
-                    'plan_name' => $r->plan_name ?? 'Novelya Premium',
-                    'amount' => 'Rp '.number_format($r->total_amount ?? $r->price ?? 0, 0, ',', '.'),
-                    'minutes_ago' => (string) $minutesAgo,
-                    'payment_link' => $paymentLink,
-                ],
+                'params' => $params,
             ];
         })->values()->toArray();
     }
@@ -163,7 +179,7 @@ class RunWaTriggersCommand extends Command
      *
      * @return array<int, array{user_id: string, phone: string, params: array<string, string>}>
      */
-    private function resolveExpiryReminder(WaTrigger $trigger): array
+    private function resolveBeforeExpiry(WaTrigger $trigger): array
     {
         $days = $trigger->delay_value;
 
@@ -198,6 +214,57 @@ class RunWaTriggersCommand extends Command
                     'plan_name' => $r->plan_name ?? 'Novelya Premium',
                     'expired_at' => $expiredAt->format('d M Y'),
                     'days_left' => (string) max(0, $daysLeft),
+                ],
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Subscription sudah expired dalam X hari terakhir dan belum ada renewal aktif.
+     *
+     * @return array<int, array{user_id: string, phone: string, params: array<string, string>}>
+     */
+    private function resolveAfterExpiry(WaTrigger $trigger): array
+    {
+        $days = $trigger->delay_value;
+        $windowStart = now()->subDays($days);
+
+        $rows = DB::connection('novel')
+            ->table('transactions as t')
+            ->join('users as u', 'u.id', '=', 't.user_id')
+            ->join('profile as p', 'p.user_id', '=', 't.user_id')
+            ->leftJoin('membership_plans as mp', 'mp.id', '=', 't.plan_id')
+            ->where('t.status', 'paid')
+            ->where('t.expired_at', '<', now())
+            ->where('t.expired_at', '>=', $windowStart)
+            ->whereNotNull('p.phone_number')
+            ->where('p.phone_number', '!=', '')
+            ->whereNotExists(function ($q) {
+                $q->from('transactions as t2')
+                    ->whereColumn('t2.user_id', 't.user_id')
+                    ->where('t2.status', 'paid')
+                    ->where('t2.expired_at', '>', now());
+            })
+            ->orderByDesc('t.expired_at')
+            ->get([
+                'u.id as user_id',
+                'u.name',
+                'mp.name as plan_name',
+                't.expired_at',
+                'p.phone_number',
+            ])
+            ->unique('user_id');
+
+        return $rows->map(function ($r) {
+            $expiredAt = Carbon::parse($r->expired_at);
+
+            return [
+                'user_id' => (string) $r->user_id,
+                'phone' => $r->phone_number,
+                'params' => [
+                    'name' => $r->name ?? 'Kak',
+                    'plan_name' => $r->plan_name ?? 'Novelya Premium',
+                    'expired_at' => $expiredAt->format('d M Y'),
                 ],
             ];
         })->values()->toArray();

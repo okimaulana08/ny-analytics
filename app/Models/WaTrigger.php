@@ -11,11 +11,20 @@ class WaTrigger extends Model
 
     public const TYPE_EXPIRY_REMINDER = 'expiry_reminder';
 
+    public const COND_INVOICE_ACTIVE = 'invoice_active';
+
+    public const COND_INVOICE_EXPIRED = 'invoice_expired';
+
+    public const COND_BEFORE_EXPIRY = 'before_expiry';
+
+    public const COND_AFTER_EXPIRY = 'after_expiry';
+
     protected $connection = 'sqlite';
 
     protected $fillable = [
         'name',
         'type',
+        'condition',
         'delay_value',
         'delay_unit',
         'cooldown_hours',
@@ -59,6 +68,17 @@ class WaTrigger extends Model
         };
     }
 
+    public function conditionLabel(): string
+    {
+        return match ($this->condition) {
+            self::COND_INVOICE_ACTIVE => 'Invoice Aktif',
+            self::COND_INVOICE_EXPIRED => 'Invoice Expired',
+            self::COND_BEFORE_EXPIRY => 'Sebelum Berakhir',
+            self::COND_AFTER_EXPIRY => 'Setelah Berakhir',
+            default => $this->condition ?? '-',
+        };
+    }
+
     public function delayLabel(): string
     {
         $unit = match ($this->delay_unit) {
@@ -69,5 +89,41 @@ class WaTrigger extends Model
         };
 
         return "{$this->delay_value} {$unit}";
+    }
+
+    /** @return array<string, string> placeholder => description */
+    public function availablePlaceholders(): array
+    {
+        return match ($this->condition ?? ($this->type === self::TYPE_PENDING_PAYMENT ? self::COND_INVOICE_ACTIVE : self::COND_BEFORE_EXPIRY)) {
+            self::COND_INVOICE_ACTIVE => [
+                '{name}' => 'Nama user',
+                '{plan_name}' => 'Nama paket',
+                '{amount}' => 'Nominal transaksi',
+                '{invoice_link}' => 'Link pembayaran invoice',
+                '{minutes_ago}' => 'Berapa menit lalu transaksi dibuat',
+            ],
+            self::COND_INVOICE_EXPIRED => [
+                '{name}' => 'Nama user',
+                '{plan_name}' => 'Nama paket',
+                '{amount}' => 'Nominal transaksi',
+                '{subscription_url}' => 'URL halaman pilih paket',
+                '{minutes_ago}' => 'Berapa menit lalu transaksi dibuat',
+            ],
+            self::COND_BEFORE_EXPIRY => [
+                '{name}' => 'Nama user',
+                '{plan_name}' => 'Nama paket',
+                '{expired_at}' => 'Tanggal & waktu berakhir',
+                '{days_left}' => 'Sisa hari sebelum berakhir',
+            ],
+            self::COND_AFTER_EXPIRY => [
+                '{name}' => 'Nama user',
+                '{plan_name}' => 'Nama paket',
+                '{expired_at}' => 'Tanggal & waktu berakhir',
+            ],
+            default => [
+                '{name}' => 'Nama user',
+                '{plan_name}' => 'Nama paket',
+            ],
+        };
     }
 }

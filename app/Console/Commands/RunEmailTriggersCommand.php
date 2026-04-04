@@ -39,12 +39,6 @@ class RunEmailTriggersCommand extends Command
 
     private function processTrigger(EmailTrigger $trigger, ?int $adminId): void
     {
-        if (! $trigger->template) {
-            $this->warn("Trigger [{$trigger->name}] tidak punya template, dilewati.");
-
-            return;
-        }
-
         $recipients = $this->resolveRecipients($trigger);
 
         if (empty($recipients)) {
@@ -92,7 +86,7 @@ class RunEmailTriggersCommand extends Command
             'name' => 'Trigger: '.$trigger->name.' '.now()->format('d/m/Y'),
             'email_group_id' => $group->id,
             'email_template_id' => $trigger->email_template_id,
-            'subject' => $trigger->template->subject,
+            'subject' => $trigger->template?->subject ?? $trigger->subject ?? $trigger->name,
             'status' => 'queued',
             'recipient_count' => count($recipients),
             'created_by' => $adminId,
@@ -122,14 +116,33 @@ class RunEmailTriggersCommand extends Command
     }
 
     /**
-     * @return array<int, array{email: string, name: string, user_id: string|null, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string|null}>
      */
     private function resolveRecipients(EmailTrigger $trigger): array
     {
         $conditions = $trigger->conditions ?? [];
 
+        // Route by condition first, fall back to trigger_type for legacy rows
+        $condition = $trigger->condition;
+
+        if ($condition) {
+            return match ($condition) {
+                EmailTrigger::COND_INVOICE_ACTIVE => $this->resolvePendingPayment($conditions, withInvoiceLink: true),
+                EmailTrigger::COND_INVOICE_EXPIRED => $this->resolvePendingPayment($conditions, withInvoiceLink: false),
+                EmailTrigger::COND_BEFORE_EXPIRY => $this->resolveBeforeExpiry($conditions),
+                EmailTrigger::COND_AFTER_EXPIRY => $this->resolveAfterExpiry($conditions),
+                default => $this->resolveByType($trigger, $conditions),
+            };
+        }
+
+        return $this->resolveByType($trigger, $conditions);
+    }
+
+    /** Legacy routing by trigger_type (for rows without condition set). */
+    private function resolveByType(EmailTrigger $trigger, array $conditions): array
+    {
         return match ($trigger->trigger_type) {
-            EmailTrigger::TYPE_EXPIRY_REMINDER => $this->resolveExpiryReminder($conditions),
+            EmailTrigger::TYPE_EXPIRY_REMINDER => $this->resolveBeforeExpiry($conditions),
             EmailTrigger::TYPE_RE_ENGAGEMENT => $this->resolveReEngagement($conditions),
             EmailTrigger::TYPE_WELCOME_PAYMENT => $this->resolveWelcomePayment(),
             default => [],
@@ -137,12 +150,68 @@ class RunEmailTriggersCommand extends Command
     }
 
     /**
-     * User dengan subscription expiring dalam X hari ke depan.
+     * Transaksi masih pending lebih dari X menit/jam.
+     * withInvoiceLink = true  → invoice_active (ada link bayar di email)
+     * withInvoiceLink = false → invoice_expired (tidak ada invoice, kirim link langganan)
      *
      * @param  array<string, mixed>  $conditions
-     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string}>
      */
-    private function resolveExpiryReminder(array $conditions): array
+    private function resolvePendingPayment(array $conditions, bool $withInvoiceLink = true): array
+    {
+        $delayMinutes = (int) ($conditions['delay_minutes'] ?? 30);
+        $cutoff = now()->subMinutes($delayMinutes);
+        $subscriptionUrl = config('app.url');
+
+        $rows = DB::connection('novel')
+            ->table('transactions as t')
+            ->join('users as u', 'u.id', '=', 't.user_id')
+            ->leftJoin('membership_plans as mp', 'mp.id', '=', 't.plan_id')
+            ->where('t.status', 'pending')
+            ->where('t.created_at', '<=', $cutoff)
+            ->whereNotNull('u.email')
+            ->where('u.email', '!=', '')
+            ->orderBy('t.created_at')
+            ->get([
+                'u.id as user_id',
+                'u.email',
+                'u.name',
+                'mp.name as plan_name',
+                't.total_amount',
+                't.created_at as transaction_created_at',
+            ])
+            ->unique('email');
+
+        return $rows->map(function ($r) use ($withInvoiceLink, $subscriptionUrl) {
+            $params = [
+                'name' => $r->name ?? 'Pengguna',
+                'email' => $r->email,
+                'plan_name' => $r->plan_name ?? 'Novelya Premium',
+                'amount' => 'Rp '.number_format($r->total_amount ?? 0, 0, ',', '.'),
+            ];
+
+            if ($withInvoiceLink) {
+                $params['invoice_link'] = $subscriptionUrl;
+            } else {
+                $params['subscription_url'] = $subscriptionUrl;
+            }
+
+            return [
+                'email' => $r->email,
+                'name' => $r->name ?? '',
+                'user_id' => (string) $r->user_id,
+                'params' => $params,
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Subscription yang akan expired dalam X hari ke depan.
+     *
+     * @param  array<string, mixed>  $conditions
+     * @return array<int, array{email: string, name: string, user_id: string}>
+     */
+    private function resolveBeforeExpiry(array $conditions): array
     {
         $daysBefore = (int) ($conditions['days_before'] ?? 7);
 
@@ -166,6 +235,51 @@ class RunEmailTriggersCommand extends Command
                 'name' => $r->name ?? 'Pengguna',
                 'email' => $r->email,
                 'expiry_date' => Carbon::parse($r->expired_at)->format('d M Y'),
+                'expired_at' => Carbon::parse($r->expired_at)->format('d M Y'),
+                'days_left' => (string) max(0, (int) now()->diffInDays(Carbon::parse($r->expired_at), false)),
+                'plan_name' => $r->plan_name ?? '',
+            ],
+        ])->values()->toArray();
+    }
+
+    /**
+     * Subscription sudah expired dalam X hari terakhir dan belum ada renewal aktif.
+     *
+     * @param  array<string, mixed>  $conditions
+     * @return array<int, array{email: string, name: string, user_id: string}>
+     */
+    private function resolveAfterExpiry(array $conditions): array
+    {
+        $days = (int) ($conditions['days_after'] ?? 7);
+        $windowStart = now()->subDays($days);
+
+        $rows = DB::connection('novel')
+            ->table('transactions as t')
+            ->join('users as u', 'u.id', '=', 't.user_id')
+            ->leftJoin('membership_plans as mp', 'mp.id', '=', 't.plan_id')
+            ->where('t.status', 'paid')
+            ->where('t.expired_at', '<', now())
+            ->where('t.expired_at', '>=', $windowStart)
+            ->whereNotNull('u.email')
+            ->where('u.email', '!=', '')
+            ->whereNotExists(function ($q) {
+                $q->from('transactions as t2')
+                    ->whereColumn('t2.user_id', 't.user_id')
+                    ->where('t2.status', 'paid')
+                    ->where('t2.expired_at', '>', now());
+            })
+            ->orderByDesc('t.expired_at')
+            ->get(['u.id', 'u.email', 'u.name', 't.expired_at', 'mp.name as plan_name'])
+            ->unique('email');
+
+        return $rows->map(fn ($r) => [
+            'email' => $r->email,
+            'name' => $r->name ?? '',
+            'user_id' => (string) $r->id,
+            'params' => [
+                'name' => $r->name ?? 'Pengguna',
+                'email' => $r->email,
+                'expired_at' => Carbon::parse($r->expired_at)->format('d M Y'),
                 'plan_name' => $r->plan_name ?? '',
             ],
         ])->values()->toArray();
@@ -175,7 +289,7 @@ class RunEmailTriggersCommand extends Command
      * Subscriber aktif yang tidak baca chapter apapun dalam X hari.
      *
      * @param  array<string, mixed>  $conditions
-     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string}>
      */
     private function resolveReEngagement(array $conditions): array
     {
@@ -218,7 +332,7 @@ class RunEmailTriggersCommand extends Command
     /**
      * User yang baru pertama kali bayar hari ini.
      *
-     * @return array<int, array{email: string, name: string, user_id: string, params: array<string, string>}>
+     * @return array<int, array{email: string, name: string, user_id: string}>
      */
     private function resolveWelcomePayment(): array
     {
