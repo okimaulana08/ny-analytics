@@ -48,3 +48,10 @@ Schedule::command('wa:run-triggers')
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+// Queue worker for AI novel generation jobs - every minute
+Schedule::command('queue:work --queue=default --stop-when-empty --max-time=110 --tries=2 --timeout=300')
+    ->everyMinute()
+    ->withoutOverlapping(5)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/queue-worker.log'));

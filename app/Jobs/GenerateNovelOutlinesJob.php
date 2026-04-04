@@ -14,7 +14,7 @@ class GenerateNovelOutlinesJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 180;
+    public int $timeout = 300;
 
     public int $tries = 2;
 
