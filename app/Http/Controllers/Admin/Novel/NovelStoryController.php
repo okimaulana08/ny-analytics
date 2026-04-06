@@ -122,10 +122,19 @@ class NovelStoryController extends Controller
 
     public function status(NovelStory $story): JsonResponse
     {
+        $outlineProgress = null;
+        if ($story->status === 'outline_pending') {
+            $outlineProgress = [
+                'done' => $story->chapters()->whereIn('outline_status', ['ready', 'approved'])->count(),
+                'total' => $story->total_chapters_planned,
+            ];
+        }
+
         return response()->json([
             'status' => $story->status,
             'status_label' => $story->statusLabel(),
             'title_draft' => $story->title_draft,
+            'outline_progress' => $outlineProgress,
         ]);
     }
 
@@ -273,9 +282,13 @@ class NovelStoryController extends Controller
             return back()->with('error', 'Tidak ada bab yang bisa di-generate (outline belum approved atau sudah selesai).');
         }
 
+        $i = 0;
         foreach ($chapters as $chapter) {
             $chapter->update(['content_status' => 'generating']);
-            GenerateChapterContentJob::dispatch($chapter->id, $adminId);
+            // Stagger 20s each: content prompt ~10,000 tokens → max 3 safe jobs/min
+            GenerateChapterContentJob::dispatch($chapter->id, $adminId)
+                ->delay(now()->addSeconds($i * 20));
+            $i++;
         }
 
         return back()->with('success', "Generate konten dimulai untuk {$chapters->count()} bab.");
