@@ -15,6 +15,8 @@ class GenerateNovelOverviewJob implements ShouldQueue
 
     public int $timeout = 300;
 
+    public bool $failOnTimeout = true;
+
     public int $tries = 2;
 
     public function __construct(

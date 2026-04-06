@@ -50,8 +50,10 @@ Schedule::command('wa:run-triggers')
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
 // Queue worker for AI novel generation jobs - every minute
-Schedule::command('queue:work --queue=default --stop-when-empty --max-time=110 --tries=2 --timeout=300')
+// --max-time dihapus: outline 30 bab butuh 3-5 menit, max-time=110 membunuh worker di tengah API call
+// withoutOverlapping(10) sudah cukup mencegah double worker berjalan bersamaan
+Schedule::command('queue:work --queue=default --stop-when-empty --timeout=300')
     ->everyMinute()
-    ->withoutOverlapping(5)
+    ->withoutOverlapping(10)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/queue-worker.log'));
