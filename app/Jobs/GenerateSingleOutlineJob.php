@@ -13,7 +13,9 @@ class GenerateSingleOutlineJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 120;
+    public int $timeout = 180;
+
+    public bool $failOnTimeout = true;
 
     public int $tries = 2;
 
@@ -62,6 +64,15 @@ class GenerateSingleOutlineJob implements ShouldQueue
             outputTokens: $result['output_tokens'],
             triggeredBy: $this->triggeredBy,
         );
+
+        // If all chapters have a completed outline, mark story as outline_ready
+        $allDone = $story->chapters()
+            ->whereNotIn('outline_status', ['ready', 'approved'])
+            ->doesntExist();
+
+        if ($allDone) {
+            $story->update(['status' => 'outline_ready']);
+        }
     }
 
     public function failed(\Throwable $exception): void
