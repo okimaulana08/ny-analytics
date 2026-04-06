@@ -65,6 +65,7 @@ class NovelChapterController extends Controller
         }
 
         $adminId = session('admin_user.id');
+        $chapter->update(['content_status' => 'generating']);
         GenerateChapterContentJob::dispatch($chapter->id, $adminId);
 
         return back()->with('success', 'AI sedang menulis konten bab...');
