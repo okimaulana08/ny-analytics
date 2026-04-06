@@ -17,7 +17,9 @@ class GenerateSingleOutlineJob implements ShouldQueue
 
     public bool $failOnTimeout = true;
 
-    public int $tries = 1;
+    public int $tries = 2;
+
+    public int $backoff = 70;
 
     public function __construct(
         public readonly int $chapterId,
