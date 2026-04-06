@@ -166,7 +166,7 @@ class NovelStoryController extends Controller
         }
 
         $adminId = session('admin_user.id');
-        $story->update(['status' => 'draft']);
+        $story->update(['status' => 'overview_pending']);
         GenerateNovelOverviewJob::dispatch($story->id, $adminId);
 
         return back()->with('success', 'Ringkasan di-generate ulang...');
@@ -179,6 +179,7 @@ class NovelStoryController extends Controller
         }
 
         $adminId = session('admin_user.id');
+        $story->update(['status' => 'outline_pending']);
         GenerateNovelOutlinesJob::dispatch($story->id, $adminId);
 
         return back()->with('success', 'AI sedang generate outline semua bab...');

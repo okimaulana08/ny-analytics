@@ -81,7 +81,7 @@
 
         @if(in_array($story->status, ['draft', 'overview_pending']))
         {{-- Generating / initial state --}}
-        <div class="novel-card p-10 text-center border generating" x-show="status === 'overview_pending' || status === 'draft'" id="generating-box">
+        <div class="novel-card p-10 text-center border generating" x-show="status === 'overview_pending' || status === 'draft' || submitting" id="generating-box">
             <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background: rgba(124,92,191,0.15);">
                 <svg class="w-7 h-7 animate-spin" style="color: #7c5cbf;" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -223,7 +223,7 @@
                         </button>
                     </form>
 
-                    <form method="POST" action="{{ route('admin.novel.stories.regenerate-overview', $story) }}" class="inline">
+                    <form method="POST" action="{{ route('admin.novel.stories.regenerate-overview', $story) }}" class="inline" @submit="submitting = true">
                         @csrf
                         <button type="submit" class="btn-outline flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -250,14 +250,26 @@
             @if($story->status === 'overview_approved')
             <div class="approval-bar">
                 <div class="text-center">
-                    <form method="POST" action="{{ route('admin.novel.stories.generate-outlines', $story) }}" class="inline">
-                        @csrf
-                        <button type="submit" class="btn-gold flex items-center gap-2 mx-auto">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            Generate Outline Semua Bab
-                        </button>
-                    </form>
-                    <p class="text-xs mt-2" style="color: #5a5368;">AI akan generate outline untuk semua {{ $story->total_chapters_planned }} bab sekaligus</p>
+                    {{-- Spinner saat submitting --}}
+                    <div x-show="submitting" x-cloak class="py-4">
+                        <div class="w-10 h-10 rounded-2xl mx-auto mb-3 flex items-center justify-center" style="background: rgba(124,92,191,0.15);">
+                            <svg class="w-5 h-5 animate-spin" style="color: #7c5cbf;" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-serif" style="color: #e8e0d0;">Memulai generate outline...</p>
+                    </div>
+                    <div x-show="!submitting">
+                        <form method="POST" action="{{ route('admin.novel.stories.generate-outlines', $story) }}" class="inline" @submit="submitting = true">
+                            @csrf
+                            <button type="submit" class="btn-gold flex items-center gap-2 mx-auto">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                Generate Outline Semua Bab
+                            </button>
+                        </form>
+                        <p class="text-xs mt-2" style="color: #5a5368;">AI akan generate outline untuk semua {{ $story->total_chapters_planned }} bab sekaligus</p>
+                    </div>
                 </div>
             </div>
             @endif
@@ -276,7 +288,7 @@
                 </svg>
             </div>
             <p class="font-serif text-lg mb-2" style="color: #e8e0d0;">✦ AI sedang menyusun outline semua bab...</p>
-            <p class="text-sm" style="color: #8a7f9a;">Proses ini membutuhkan waktu 1-2 menit</p>
+            <p class="text-sm" style="color: #8a7f9a;">Setiap bab diproses satu per satu, halaman otomatis update saat semua selesai</p>
         </div>
         @else
         {{-- Outline ready/approved --}}
@@ -495,6 +507,7 @@
 function storyWorkspace(storyId, initialStatus) {
     return {
         status: initialStatus,
+        submitting: false,
         pollInterval: null,
 
         init() {
