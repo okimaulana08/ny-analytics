@@ -12,7 +12,7 @@ class GenerateNovelOutlinesJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 2;
+    public int $tries = 1;
 
     public function __construct(
         public readonly int $storyId,
