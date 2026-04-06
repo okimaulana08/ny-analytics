@@ -191,7 +191,7 @@
         </div>
 
         {{-- RIGHT: Content Panel (65%) --}}
-        <div class="lg:col-span-3 space-y-4" x-data="{ editContent: false }">
+        <div class="lg:col-span-3 space-y-4" x-data="{ editContent: false, submitting: false }">
             <div class="novel-card p-5 {{ in_array($chapter->content_status, ['generating']) ? 'generating border' : '' }}">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-mono text-sm font-semibold" style="color: #d4a04a;">Konten Bab</h2>
@@ -215,8 +215,20 @@
                     </div>
                 </div>
 
+                {{-- Immediate loading state saat form di-submit (sebelum redirect) --}}
+                <div x-show="submitting" x-cloak class="text-center py-12">
+                    <div class="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background: rgba(124,92,191,0.15);">
+                        <svg class="w-6 h-6 animate-spin" style="color: #7c5cbf;" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <p class="font-serif text-base mb-2" style="color: #e8e0d0;">✦ Mengirim permintaan ke AI...</p>
+                    <p class="text-sm" style="color: #8a7f9a;">Mohon tunggu, jangan klik ulang</p>
+                </div>
+
                 @if($chapter->content_status === 'generating')
-                <div class="text-center py-12">
+                <div x-show="!submitting" class="text-center py-12">
                     <div class="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background: rgba(124,92,191,0.15);">
                         <svg class="w-6 h-6 animate-spin" style="color: #7c5cbf;" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -258,9 +270,9 @@
                 </div>
 
                 @elseif($chapter->outline_status === 'approved')
-                <div class="text-center py-12">
+                <div x-show="!submitting" class="text-center py-12">
                     <p class="font-serif text-base mb-4" style="color: #8a7f9a;">Outline disetujui. Siap generate konten.</p>
-                    <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="inline">
+                    <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="inline" @submit="submitting = true">
                         @csrf
                         <button type="submit" class="btn-gold flex items-center gap-2 mx-auto">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -288,7 +300,7 @@
                         <button onclick="document.getElementById('revision-form').classList.toggle('hidden')" class="btn-ghost text-sm">
                             Minta Revisi
                         </button>
-                        <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="inline">
+                        <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="inline" @submit="submitting = true">
                             @csrf
                             <button type="submit" class="btn-ghost text-sm">Generate Ulang</button>
                         </form>
@@ -308,7 +320,7 @@
                                 placeholder="Tulis catatan revisi: apa yang perlu diperbaiki AI...">{{ $chapter->content_revision_note }}</textarea>
                             <div class="flex gap-2">
                                 <button type="submit" class="btn-danger text-sm flex-1">Simpan Catatan Revisi</button>
-                                <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="flex-1">
+                                <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="flex-1" @submit="submitting = true">
                                     @csrf
                                     <button type="submit" class="btn-outline w-full text-sm">Generate Ulang dengan Revisi</button>
                                 </form>
@@ -332,8 +344,8 @@
                 @endif
 
                 @if(in_array($chapter->content_status, ['pending', 'failed']) && $chapter->outline_status === 'approved')
-                <div class="pt-4 mt-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
-                    <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="space-y-2">
+                <div x-show="!submitting" class="pt-4 mt-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                    <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="space-y-2" @submit="submitting = true">
                         @csrf
                         <textarea name="content_prompt_notes" class="novel-input text-xs resize-none" rows="2"
                             placeholder="Catatan tambahan untuk AI (opsional)...">{{ $chapter->content_prompt_notes }}</textarea>
