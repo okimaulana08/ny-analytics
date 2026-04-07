@@ -83,7 +83,7 @@ class NovelStory extends Model
 
     public function canGenerateOutlines(): bool
     {
-        return $this->status === 'overview_approved';
+        return in_array($this->status, ['overview_ready', 'overview_approved']);
     }
 
     public function canApproveOutlines(): bool
@@ -93,7 +93,7 @@ class NovelStory extends Model
 
     public function isContentPhase(): bool
     {
-        return in_array($this->status, ['outline_approved', 'content_in_progress', 'content_complete', 'published']);
+        return in_array($this->status, ['outline_ready', 'outline_approved', 'content_in_progress', 'content_complete', 'published']);
     }
 
     public function allChaptersContentApproved(): bool

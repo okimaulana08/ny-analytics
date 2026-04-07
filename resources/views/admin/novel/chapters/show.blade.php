@@ -124,27 +124,19 @@
                 @endif
 
                 {{-- Outline actions --}}
-                @if($chapter->outline_status === 'ready')
+                @if(in_array($chapter->outline_status, ['ready', 'approved']))
                 <div class="space-y-2 pt-3" x-show="!editOutline" style="border-top: 1px solid rgba(255,255,255,0.05);">
-                    <form method="POST" action="{{ route('admin.novel.chapters.approve-outline', [$story, $chapter]) }}">
-                        @csrf
-                        <button type="submit" class="btn-gold w-full text-sm text-center">✓ Setujui Outline</button>
-                    </form>
                     <button onclick="document.getElementById('regen-outline-form').classList.toggle('hidden')" class="btn-ghost w-full text-sm text-center">
-                        Generate Ulang
+                        Generate Ulang Outline
                     </button>
                     <div id="regen-outline-form" class="hidden mt-2">
                         <form method="POST" action="{{ route('admin.novel.chapters.regenerate-outline', [$story, $chapter]) }}" class="space-y-2">
                             @csrf
                             <textarea name="outline_prompt_notes" class="novel-input text-xs resize-none" rows="2"
                                 placeholder="Catatan revisi outline...">{{ $chapter->outline_prompt_notes }}</textarea>
-                            <button type="submit" class="btn-outline w-full text-sm">Generate Ulang Outline</button>
+                            <button type="submit" class="btn-outline w-full text-sm">Generate Ulang</button>
                         </form>
                     </div>
-                </div>
-                @elseif($chapter->outline_status === 'approved')
-                <div class="pt-3 text-center" x-show="!editOutline" style="border-top: 1px solid rgba(255,255,255,0.05);">
-                    <span class="text-xs font-mono" style="color: #95d5b2;">✓ Outline disetujui</span>
                 </div>
                 @elseif(in_array($chapter->outline_status, ['pending', 'failed']))
                 <div class="pt-3">
@@ -269,9 +261,9 @@
                     </form>
                 </div>
 
-                @elseif($chapter->outline_status === 'approved')
+                @elseif(in_array($chapter->outline_status, ['ready', 'approved']))
                 <div x-show="!submitting" class="text-center py-12">
-                    <p class="font-serif text-base mb-4" style="color: #8a7f9a;">Outline disetujui. Siap generate konten.</p>
+                    <p class="font-serif text-base mb-4" style="color: #8a7f9a;">Outline siap. Klik untuk generate konten.</p>
                     <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="inline" @submit="submitting = true">
                         @csrf
                         <button type="submit" class="btn-gold flex items-center gap-2 mx-auto">
@@ -281,31 +273,22 @@
                     </form>
                 </div>
                 @else
-                <p class="text-sm text-center py-12" style="color: #5a5368;">Approve outline dulu sebelum generate konten.</p>
+                <p class="text-sm text-center py-12" style="color: #5a5368;">Outline belum tersedia. Generate outline bab terlebih dahulu.</p>
                 @endif
 
                 {{-- Content actions --}}
-                @if(in_array($chapter->content_status, ['ready', 'revision_requested']))
+                @if(in_array($chapter->content_status, ['approved', 'revision_requested']))
                 <div x-show="!editContent">
                 <div class="space-y-2 pt-4 mt-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
-                    @if($chapter->content_status === 'ready')
                     <div class="flex items-center gap-2 flex-wrap">
-                        <form method="POST" action="{{ route('admin.novel.chapters.approve-content', [$story, $chapter]) }}" class="inline">
-                            @csrf
-                            <button type="submit" class="btn-gold text-sm flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                Setujui Konten
-                            </button>
-                        </form>
                         <button onclick="document.getElementById('revision-form').classList.toggle('hidden')" class="btn-ghost text-sm">
-                            Minta Revisi
+                            Minta Revisi AI
                         </button>
                         <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="inline" @submit="submitting = true">
                             @csrf
                             <button type="submit" class="btn-ghost text-sm">Generate Ulang</button>
                         </form>
                     </div>
-                    @endif
 
                     @if($chapter->content_revision_note)
                     <div class="p-3 rounded-xl text-xs" style="background: rgba(107,45,45,0.2); border: 1px solid rgba(244,160,160,0.15); color: #f4a0a0;">
@@ -328,12 +311,12 @@
                         </form>
                     </div>
                 </div>
-                </div>{{-- /x-show="!editContent" (ready/revision_requested actions) --}}
+                </div>{{-- /x-show="!editContent" (content actions) --}}
                 @endif
 
                 @if($chapter->content_status === 'approved')
                 <div x-show="!editContent" class="pt-3 flex items-center justify-between" style="border-top: 1px solid rgba(255,255,255,0.05);">
-                    <span class="text-xs font-mono" style="color: #95d5b2;">✓ Konten disetujui</span>
+                    <span class="text-xs font-mono" style="color: #95d5b2;">✓ Konten selesai</span>
                     <a href="{{ route('admin.novel.chapters.export-pdf', [$story, $chapter]) }}" target="_blank"
                         class="text-[10px] font-mono flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors"
                         style="background: rgba(212,160,74,0.1); color: #d4a04a; border: 1px solid rgba(212,160,74,0.25);">
@@ -343,7 +326,7 @@
                 </div>
                 @endif
 
-                @if(in_array($chapter->content_status, ['pending', 'failed']) && $chapter->outline_status === 'approved')
+                @if(in_array($chapter->content_status, ['pending', 'failed']) && in_array($chapter->outline_status, ['ready', 'approved']))
                 <div x-show="!submitting" class="pt-4 mt-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
                     <form method="POST" action="{{ route('admin.novel.chapters.generate-content', [$story, $chapter]) }}" class="space-y-2" @submit="submitting = true">
                         @csrf

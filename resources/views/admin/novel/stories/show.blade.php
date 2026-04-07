@@ -215,33 +215,20 @@
             @if($story->status === 'overview_ready')
             <div class="approval-bar">
                 <div class="flex items-center gap-3 justify-center flex-wrap">
-                    <form method="POST" action="{{ route('admin.novel.stories.approve-overview', $story) }}" class="inline">
+                    <form method="POST" action="{{ route('admin.novel.stories.generate-outlines', $story) }}" class="inline" @submit="submitting = true">
                         @csrf
                         <button type="submit" class="btn-gold flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Setujui Ringkasan
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Generate Outline Semua Bab
                         </button>
                     </form>
 
                     <form method="POST" action="{{ route('admin.novel.stories.regenerate-overview', $story) }}" class="inline" @submit="submitting = true">
                         @csrf
-                        <button type="submit" class="btn-outline flex items-center gap-2">
+                        <button type="submit" class="btn-ghost flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                            Generate Ulang
+                            Generate Ulang Ringkasan
                         </button>
-                    </form>
-
-                    <button onclick="document.getElementById('reject-form').classList.toggle('hidden')" class="btn-ghost">
-                        Tolak + Catatan
-                    </button>
-                </div>
-
-                <div id="reject-form" class="hidden mt-4 max-w-lg mx-auto">
-                    <form method="POST" action="{{ route('admin.novel.stories.reject-overview', $story) }}" class="space-y-3">
-                        @csrf
-                        <textarea name="rejection_notes" class="novel-input resize-none" rows="3"
-                            placeholder="Catatan untuk AI saat generate ulang...">{{ $story->overview_prompt_notes }}</textarea>
-                        <button type="submit" class="btn-danger w-full">Tolak & Simpan Catatan</button>
                     </form>
                 </div>
             </div>
@@ -277,7 +264,7 @@
         @endif
 
     {{-- =================== STAGE 2: OUTLINE =================== --}}
-    @elseif(in_array($story->status, ['outline_pending', 'outline_ready', 'outline_approved']))
+    @elseif(in_array($story->status, ['outline_pending', 'outline_ready']))
 
         @if($story->status === 'outline_pending')
         <div class="novel-card p-10 text-center border generating mb-5">
@@ -291,37 +278,51 @@
 
             {{-- Progress bar --}}
             <div class="max-w-xs mx-auto mb-3">
-                <div class="flex items-center justify-between text-xs font-mono mb-1.5" style="color: #8a7f9a;">
-                    <span>Progress</span>
-                    <span><span x-text="outlineProgress.done">0</span> dari {{ $story->total_chapters_planned }} bab</span>
+                <div class="flex items-center justify-between text-xs font-mono mb-1.5">
+                    <span style="color: #8a7f9a;">Progress</span>
+                    <span>
+                        <span x-text="outlineProgress.done" style="color: #95d5b2;">0</span>
+                        <span style="color: #8a7f9a;"> selesai</span>
+                        <template x-if="outlineProgress.failed > 0">
+                            <span> · <span x-text="outlineProgress.failed" style="color: #f4a0a0;"></span><span style="color: #f4a0a0;"> gagal</span></span>
+                        </template>
+                        <span style="color: #8a7f9a;"> / {{ $story->total_chapters_planned }} bab</span>
+                    </span>
                 </div>
                 <div class="w-full rounded-full h-2" style="background: rgba(255,255,255,0.07);">
                     <div class="h-2 rounded-full transition-all duration-500"
                         style="background: linear-gradient(90deg, #7c5cbf, #a688e0);"
-                        :style="'width: ' + Math.round((outlineProgress.done / {{ $story->total_chapters_planned }}) * 100) + '%'"></div>
+                        :style="'width: ' + Math.round(((outlineProgress.done + (outlineProgress.failed || 0)) / {{ $story->total_chapters_planned }}) * 100) + '%'"></div>
                 </div>
+                <template x-if="outlineProgress.failed > 0">
+                    <p class="text-xs mt-1.5 text-center" style="color: #f4a0a0;">⚠ Ada bab yang gagal — akan muncul setelah selesai untuk di-regenerate</p>
+                </template>
             </div>
 
             <p class="text-sm" style="color: #8a7f9a;">Halaman otomatis update saat semua selesai</p>
         </div>
         @else
-        {{-- Outline ready/approved --}}
+        {{-- Outline ready — some may have failed --}}
+        @php
+            $failedOutlineChapters = $story->chapters->where('outline_status', 'failed');
+            $readyOutlineChapters = $story->chapters->where('outline_status', 'ready');
+        @endphp
         <div class="novel-card p-5 mb-5">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="font-mono text-base font-semibold" style="color: #d4a04a;">Outline Bab</h2>
-                @if($story->status === 'outline_approved')
-                    <span class="text-xs px-2.5 py-1 rounded-full font-mono badge-approved">✓ Semua Disetujui</span>
+                @if($failedOutlineChapters->count() > 0)
+                    <span class="text-xs px-2.5 py-1 rounded-full font-mono" style="background: rgba(107,45,45,0.3); color: #f4a0a0;">⚠ {{ $failedOutlineChapters->count() }} bab gagal</span>
                 @else
-                    <span class="text-xs" style="color: #8a7f9a;">Review setiap bab, lalu setujui semua sekaligus</span>
+                    <span class="text-xs" style="color: #8a7f9a;">Klik bab untuk review dan edit outline</span>
                 @endif
             </div>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 @foreach($story->chapters as $chapter)
                 <a href="{{ route('admin.novel.chapters.show', [$story, $chapter]) }}"
                     class="block p-3 rounded-xl"
-                    style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); transition: border-color 0.15s;"
+                    style="background: {{ $chapter->outline_status === 'failed' ? 'rgba(107,45,45,0.2)' : 'rgba(255,255,255,0.04)' }}; border: 1px solid {{ $chapter->outline_status === 'failed' ? 'rgba(244,160,160,0.2)' : 'rgba(255,255,255,0.09)' }}; transition: border-color 0.15s;"
                     onmouseover="this.style.borderColor='rgba(212,160,74,0.3)'"
-                    onmouseout="this.style.borderColor='rgba(255,255,255,0.09)'">
+                    onmouseout="this.style.borderColor='{{ $chapter->outline_status === 'failed' ? 'rgba(244,160,160,0.2)' : 'rgba(255,255,255,0.09)' }}'">
                     <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">Bab {{ $chapter->chapter_number }}</p>
                     <p class="text-xs font-medium mb-2.5" style="color: #e8e0d0; line-height: 1.4;">{{ Str::limit($chapter->title ?? 'Belum ada judul', 40) }}</p>
                     <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->outline_status }}">{{ $chapter->outline_status }}</span>
@@ -330,25 +331,19 @@
             </div>
         </div>
 
-        @if($story->status === 'outline_ready')
-        <div class="approval-bar">
-            <div class="text-center">
-                <form method="POST" action="{{ route('admin.novel.stories.approve-outlines', $story) }}" class="inline">
-                    @csrf
-                    <button type="submit" class="btn-gold flex items-center gap-2 mx-auto">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Setujui Semua Outline
-                    </button>
-                </form>
-                <p class="text-xs mt-2" style="color: #5a5368;">Atau klik masing-masing bab untuk review dan approve individual</p>
+        @if($failedOutlineChapters->count() > 0)
+        <div class="novel-card p-4 mb-5" style="border-color: rgba(244,160,160,0.2); background: rgba(107,45,45,0.1);">
+            <p class="text-sm font-mono font-semibold mb-1" style="color: #f4a0a0;">{{ $failedOutlineChapters->count() }} Bab Gagal Di-generate</p>
+            <p class="text-xs mb-3" style="color: #8a7f9a;">Klik masing-masing bab yang gagal untuk regenerate outlinenya secara individual.</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($failedOutlineChapters as $failedChapter)
+                <a href="{{ route('admin.novel.chapters.show', [$story, $failedChapter]) }}"
+                    class="text-xs font-mono px-2.5 py-1 rounded-lg"
+                    style="background: rgba(244,160,160,0.15); color: #f4a0a0; border: 1px solid rgba(244,160,160,0.25);">
+                    Bab {{ $failedChapter->chapter_number }} →
+                </a>
+                @endforeach
             </div>
-        </div>
-        @endif
-
-        @if($story->status === 'outline_approved')
-        <div class="novel-card p-5 text-center" style="border-color: rgba(149,213,178,0.2);">
-            <p class="font-serif text-base mb-2" style="color: #95d5b2;">✓ Outline disetujui! Kini generate konten per bab.</p>
-            <p class="text-sm" style="color: #8a7f9a;">Klik bab di atas untuk mulai generate konten satu per satu.</p>
         </div>
         @endif
         @endif
@@ -359,7 +354,8 @@
             $approvedCount = $story->chapters->where('content_status', 'approved')->count();
             $generatingCount = $story->chapters->where('content_status', 'generating')->count();
             $total = $story->chapters->count();
-            $pendingChapters = $story->chapters->filter(fn($c) => in_array($c->content_status, ['pending','failed','revision_requested']) && $c->outline_status === 'approved');
+            $pendingChapters = $story->chapters->filter(fn($c) => in_array($c->content_status, ['pending','failed','revision_requested']) && in_array($c->outline_status, ['ready','approved']));
+            $failedOutlineInContent = $story->chapters->where('outline_status', 'failed');
         @endphp
         <div class="novel-card p-5 mb-5" x-data="{ selectedIds: [], selectMode: false }">
             <div class="flex items-center justify-between mb-4">
@@ -413,7 +409,8 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 @foreach($story->chapters as $chapter)
                 @php
-                    $canSelect = in_array($chapter->content_status, ['pending','failed','revision_requested']) && $chapter->outline_status === 'approved';
+                    $outlineFailed = $chapter->outline_status === 'failed';
+                    $canSelect = in_array($chapter->content_status, ['pending','failed','revision_requested']) && in_array($chapter->outline_status, ['ready','approved']) && !$outlineFailed;
                     $isApproved = $chapter->content_status === 'approved';
                     $chId = $chapter->id;
                 @endphp
@@ -423,7 +420,7 @@
                         const selected = {{ $canSelect ? 'true' : 'false' }} && selectedIds.includes('{{ $chId }}');
                         const base = 'transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;';
                         if (selected) return base + 'background: rgba(212,160,74,0.15); border: 1px solid rgba(212,160,74,0.7); box-shadow: 0 0 0 3px rgba(212,160,74,0.1);';
-                        {{ $isApproved ? 'return base + \'background: rgba(45,106,79,0.18); border: 1px solid rgba(149,213,178,0.25);\';' : 'return base + \'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);\';' }}
+                        {{ $outlineFailed ? 'return base + \'background: rgba(107,45,45,0.2); border: 1px solid rgba(244,160,160,0.2);\';' : ($isApproved ? 'return base + \'background: rgba(45,106,79,0.18); border: 1px solid rgba(149,213,178,0.25);\';' : 'return base + \'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);\';') }}
                     })()"
                     @mouseenter="if({{ $canSelect ? 'true' : 'false' }} && !selectedIds.includes('{{ $chId }}')) $el.style.borderColor = 'rgba(212,160,74,0.3)'"
                     @mouseleave="if({{ $canSelect ? 'true' : 'false' }} && !selectedIds.includes('{{ $chId }}')) $el.style.borderColor = '{{ $isApproved ? 'rgba(149,213,178,0.25)' : 'rgba(255,255,255,0.09)' }}'"
@@ -462,14 +459,35 @@
                     </p>
 
                     {{-- Status badge --}}
+                    @if($outlineFailed)
+                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-failed">outline gagal</span>
+                    @else
                     <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->content_status }}">
                         {{ $chapter->content_status }}
                     </span>
+                    @endif
                 </div>
 
                 @endforeach
             </div>
         </div>
+
+        {{-- Failed outline chapters notice in content phase --}}
+        @if($failedOutlineInContent->count() > 0)
+        <div class="novel-card p-4 mb-5" style="border-color: rgba(244,160,160,0.2); background: rgba(107,45,45,0.1);">
+            <p class="text-sm font-mono font-semibold mb-1" style="color: #f4a0a0;">{{ $failedOutlineInContent->count() }} Bab Outline Gagal</p>
+            <p class="text-xs mb-3" style="color: #8a7f9a;">Bab berikut tidak bisa generate konten karena outlinenya gagal. Klik untuk regenerate outlinenya.</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach($failedOutlineInContent as $failedCh)
+                <a href="{{ route('admin.novel.chapters.show', [$story, $failedCh]) }}"
+                    class="text-xs font-mono px-2.5 py-1 rounded-lg"
+                    style="background: rgba(244,160,160,0.15); color: #f4a0a0; border: 1px solid rgba(244,160,160,0.25);">
+                    Bab {{ $failedCh->chapter_number }} — Regenerate Outline →
+                </a>
+                @endforeach
+            </div>
+        </div>
+        @endif
     @endif
 
     {{-- Export buttons (shown when there are approved chapters) --}}
@@ -522,7 +540,7 @@ function storyWorkspace(storyId, initialStatus) {
     return {
         status: initialStatus,
         submitting: false,
-        outlineProgress: { done: 0 },
+        outlineProgress: { done: 0, failed: 0 },
         pollInterval: null,
 
         init() {

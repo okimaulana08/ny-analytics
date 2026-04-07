@@ -38,14 +38,17 @@ class GenerateChapterContentJob implements ShouldQueue
 
         $chapter->update([
             'content_draft' => $result['content'],
-            'content_status' => 'ready',
+            'content_status' => 'approved',
+            'approved_content_at' => now(),
             'content_input_tokens' => $result['input_tokens'],
             'content_output_tokens' => $result['output_tokens'],
         ]);
 
-        // Update story token totals
+        // Update story token totals and status
+        $story->refresh();
+        $allApproved = $story->chapters()->where('content_status', '!=', 'approved')->doesntExist();
         $story->update([
-            'status' => 'content_in_progress',
+            'status' => $allApproved ? 'content_complete' : 'content_in_progress',
             'total_input_tokens' => $story->total_input_tokens + $result['input_tokens'],
             'total_output_tokens' => $story->total_output_tokens + $result['output_tokens'],
         ]);

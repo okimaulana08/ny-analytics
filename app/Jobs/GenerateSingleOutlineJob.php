@@ -47,7 +47,7 @@ class GenerateSingleOutlineJob implements ShouldQueue
         $chapter->update([
             'title' => $data['title'] ?? $chapter->title,
             'outline_content' => $data['outline'] ?? null,
-            'outline_status' => 'ready',
+            'outline_status' => 'approved',
             'outline_input_tokens' => $result['input_tokens'],
             'outline_output_tokens' => $result['output_tokens'],
         ]);
@@ -67,13 +67,13 @@ class GenerateSingleOutlineJob implements ShouldQueue
             triggeredBy: $this->triggeredBy,
         );
 
-        // If all chapters have a completed outline, mark story as outline_ready
+        // If all chapters have a completed or failed outline, mark story as outline_approved
         $allDone = $story->chapters()
-            ->whereNotIn('outline_status', ['ready', 'approved'])
+            ->whereNotIn('outline_status', ['approved', 'failed'])
             ->doesntExist();
 
         if ($allDone) {
-            $story->update(['status' => 'outline_ready']);
+            $story->update(['status' => 'outline_approved']);
         }
     }
 

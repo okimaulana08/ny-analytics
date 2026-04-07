@@ -37,7 +37,7 @@ class NovelChapterController extends Controller
 
     public function regenerateOutline(Request $request, NovelStory $story, NovelChapter $chapter): RedirectResponse
     {
-        if (! in_array($chapter->outline_status, ['ready', 'failed', 'pending'])) {
+        if (! in_array($chapter->outline_status, ['ready', 'approved', 'failed', 'pending'])) {
             return back()->with('error', 'Tidak bisa regenerate outline pada status ini.');
         }
 
@@ -113,7 +113,7 @@ class NovelChapterController extends Controller
 
     public function updateContent(Request $request, NovelStory $story, NovelChapter $chapter): RedirectResponse
     {
-        if (! in_array($chapter->content_status, ['ready', 'approved', 'revision_requested'])) {
+        if (! in_array($chapter->content_status, ['ready', 'approved', 'revision_requested', 'failed'])) {
             return back()->with('error', 'Konten tidak bisa diedit pada status ini.');
         }
 
@@ -132,7 +132,7 @@ class NovelChapterController extends Controller
 
     public function requestRevision(Request $request, NovelStory $story, NovelChapter $chapter): RedirectResponse
     {
-        if ($chapter->content_status !== 'ready') {
+        if (! in_array($chapter->content_status, ['ready', 'approved'])) {
             return back()->with('error', 'Konten tidak dalam status siap untuk diminta revisi.');
         }
 

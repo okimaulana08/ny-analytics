@@ -66,7 +66,8 @@ class GenerateNovelOverviewJob implements ShouldQueue
         }
 
         $story->update([
-            'status' => 'overview_ready',
+            'status' => 'overview_approved',
+            'title' => $data['title_draft'] ?? null,
             'title_draft' => $data['title_draft'] ?? null,
             'theme' => $data['theme'] ?? null,
             'synopsis' => $data['synopsis'] ?? null,

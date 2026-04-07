@@ -70,7 +70,7 @@ class NovelChapter extends Model
 
     public function canGenerateContent(): bool
     {
-        return $this->outline_status === 'approved'
+        return in_array($this->outline_status, ['ready', 'approved'])
             && in_array($this->content_status, ['pending', 'revision_requested', 'failed']);
     }
 

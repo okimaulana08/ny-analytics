@@ -123,9 +123,10 @@ class NovelStoryController extends Controller
     public function status(NovelStory $story): JsonResponse
     {
         $outlineProgress = null;
-        if ($story->status === 'outline_pending') {
+        if (in_array($story->status, ['outline_pending', 'outline_ready', 'outline_approved'])) {
             $outlineProgress = [
-                'done' => $story->chapters()->whereIn('outline_status', ['ready', 'approved'])->count(),
+                'done' => $story->chapters()->where('outline_status', 'approved')->count(),
+                'failed' => $story->chapters()->where('outline_status', 'failed')->count(),
                 'total' => $story->total_chapters_planned,
             ];
         }
@@ -170,7 +171,7 @@ class NovelStoryController extends Controller
 
     public function regenerateOverview(NovelStory $story): RedirectResponse
     {
-        if (! in_array($story->status, ['draft', 'overview_ready'])) {
+        if (! in_array($story->status, ['draft', 'overview_ready', 'overview_approved'])) {
             return back()->with('error', 'Tidak bisa regenerate pada status ini.');
         }
 
@@ -268,12 +269,12 @@ class NovelStoryController extends Controller
         if (empty($chapterIds) || in_array('all', $chapterIds)) {
             $chapters = $story->chapters()
                 ->whereIn('content_status', ['pending', 'failed', 'revision_requested'])
-                ->where('outline_status', 'approved')
+                ->whereIn('outline_status', ['ready', 'approved'])
                 ->get();
         } else {
             $chapters = NovelChapter::whereIn('id', $chapterIds)
                 ->where('novel_story_id', $story->id)
-                ->where('outline_status', 'approved')
+                ->whereIn('outline_status', ['ready', 'approved'])
                 ->whereIn('content_status', ['pending', 'failed', 'revision_requested'])
                 ->get();
         }
