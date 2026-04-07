@@ -553,7 +553,7 @@ function storyWorkspace(storyId, initialStatus) {
         pollInterval: null,
 
         init() {
-            const pendingStatuses = ['draft', 'overview_pending', 'outline_pending', 'content_in_progress'];
+            const pendingStatuses = ['draft', 'overview_pending', 'outline_pending'];
             if (pendingStatuses.includes(this.status)) {
                 this.startPolling();
             }
@@ -568,12 +568,6 @@ function storyWorkspace(storyId, initialStatus) {
                     // Update outline progress tanpa reload halaman
                     if (data.outline_progress) {
                         this.outlineProgress = data.outline_progress;
-                    }
-
-                    // Reload when a chapter finishes (content_done count changes)
-                    if (data.content_progress && data.content_progress.done !== this.contentDone) {
-                        window.location.reload();
-                        return;
                     }
 
                     if (data.status !== this.status) {
