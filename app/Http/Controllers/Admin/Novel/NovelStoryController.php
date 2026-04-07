@@ -131,11 +131,20 @@ class NovelStoryController extends Controller
             ];
         }
 
+        $contentProgress = null;
+        if ($story->status === 'content_in_progress') {
+            $contentProgress = [
+                'done' => $story->chapters()->where('content_status', 'approved')->count(),
+                'total' => $story->total_chapters_planned,
+            ];
+        }
+
         return response()->json([
             'status' => $story->status,
             'status_label' => $story->statusLabel(),
             'title_draft' => $story->title_draft,
             'outline_progress' => $outlineProgress,
+            'content_progress' => $contentProgress,
         ]);
     }
 

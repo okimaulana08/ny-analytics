@@ -364,6 +364,15 @@
                         <span class="text-xs font-mono badge-generating px-2 py-0.5 rounded-full">⟳ {{ $generatingCount }} generating</span>
                     @endif
                     <span class="text-xs font-mono" style="color: #8a7f9a;">{{ $approvedCount }}/{{ $total }} selesai</span>
+                    <button onclick="window.location.reload()" title="Refresh status"
+                        class="w-6 h-6 flex items-center justify-center rounded-lg transition-colors"
+                        style="color: #5a5368; border: 1px solid rgba(255,255,255,0.08);"
+                        onmouseover="this.style.color='#d4a04a'; this.style.borderColor='rgba(212,160,74,0.3)'"
+                        onmouseout="this.style.color='#5a5368'; this.style.borderColor='rgba(255,255,255,0.08)'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
@@ -540,6 +549,7 @@ function storyWorkspace(storyId, initialStatus) {
         status: initialStatus,
         submitting: false,
         outlineProgress: { done: 0, failed: 0 },
+        contentDone: 0,
         pollInterval: null,
 
         init() {
@@ -558,6 +568,12 @@ function storyWorkspace(storyId, initialStatus) {
                     // Update outline progress tanpa reload halaman
                     if (data.outline_progress) {
                         this.outlineProgress = data.outline_progress;
+                    }
+
+                    // Reload when a chapter finishes (content_done count changes)
+                    if (data.content_progress && data.content_progress.done !== this.contentDone) {
+                        window.location.reload();
+                        return;
                     }
 
                     if (data.status !== this.status) {
