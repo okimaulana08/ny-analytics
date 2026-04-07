@@ -12,8 +12,19 @@
         <div>
             <label class="block text-sm font-medium mb-2" style="color: #e8e0d0;">Genre</label>
             <select name="genre" class="novel-input" required>
-                @foreach(['drama_rumah_tangga','drama_perselingkuhan','drama_poligami','drama_kdrt','drama_pernikahan_kontrak'] as $g)
-                <option value="{{ $g }}" {{ old('genre', $guideline->genre ?? '') === $g ? 'selected' : '' }}>{{ $g }}</option>
+                @foreach([
+                    'drama_rumah_tangga'       => 'Drama Rumah Tangga',
+                    'drama_perselingkuhan'     => 'Drama Perselingkuhan',
+                    'drama_poligami'           => 'Drama Poligami',
+                    'drama_kdrt'               => 'Drama KDRT',
+                    'drama_pernikahan_kontrak' => 'Pernikahan Kontrak',
+                    'horror'                   => 'Horror',
+                    'action_adventure'         => 'Action / Adventure',
+                    'thriller'                 => 'Thriller',
+                    'fantasy'                  => 'Fantasy',
+                    'comedy'                   => 'Comedy',
+                ] as $value => $label)
+                <option value="{{ $value }}" {{ old('genre', $guideline->genre ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
         </div>

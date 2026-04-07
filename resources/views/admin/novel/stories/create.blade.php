@@ -23,11 +23,20 @@
             <label class="block text-sm font-medium mb-2" style="color: #e8e0d0;">Genre Novel</label>
             <select name="genre" class="novel-input" required>
                 <option value="">-- Pilih genre --</option>
-                <option value="drama_rumah_tangga" {{ old('genre') === 'drama_rumah_tangga' ? 'selected' : '' }}>Drama Rumah Tangga</option>
-                <option value="drama_perselingkuhan" {{ old('genre') === 'drama_perselingkuhan' ? 'selected' : '' }}>Drama Perselingkuhan</option>
-                <option value="drama_poligami" {{ old('genre') === 'drama_poligami' ? 'selected' : '' }}>Drama Poligami</option>
-                <option value="drama_kdrt" {{ old('genre') === 'drama_kdrt' ? 'selected' : '' }}>Drama KDRT</option>
-                <option value="drama_pernikahan_kontrak" {{ old('genre') === 'drama_pernikahan_kontrak' ? 'selected' : '' }}>Pernikahan Kontrak</option>
+                @foreach([
+                    'drama_rumah_tangga'       => 'Drama Rumah Tangga',
+                    'drama_perselingkuhan'     => 'Drama Perselingkuhan',
+                    'drama_poligami'           => 'Drama Poligami',
+                    'drama_kdrt'               => 'Drama KDRT',
+                    'drama_pernikahan_kontrak' => 'Pernikahan Kontrak',
+                    'horror'                   => 'Horror',
+                    'action_adventure'         => 'Action / Adventure',
+                    'thriller'                 => 'Thriller',
+                    'fantasy'                  => 'Fantasy',
+                    'comedy'                   => 'Comedy',
+                ] as $value => $label)
+                <option value="{{ $value }}" {{ old('genre') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
             </select>
             @error('genre') <p class="text-xs mt-1.5" style="color: #f4a0a0;">{{ $message }}</p> @enderror
         </div>
