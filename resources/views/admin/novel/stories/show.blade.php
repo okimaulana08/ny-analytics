@@ -356,6 +356,85 @@
             $pendingChapters = $story->chapters->filter(fn($c) => in_array($c->content_status, ['pending','failed','revision_requested']) && in_array($c->outline_status, ['ready','approved']));
             $failedOutlineInContent = $story->chapters->where('outline_status', 'failed');
         @endphp
+
+        {{-- Quick-access: Ringkasan & Analitik --}}
+        <div class="flex items-center gap-2 mb-5" x-data="{ showOverview: false }">
+            <button @click="showOverview = !showOverview"
+                class="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-colors"
+                :style="showOverview ? 'background: rgba(212,160,74,0.12); color: #d4a04a; border: 1px solid rgba(212,160,74,0.3);' : 'background: transparent; color: #8a7f9a; border: 1px solid rgba(255,255,255,0.08);'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                Ringkasan
+                <svg class="w-3 h-3 transition-transform" :class="showOverview ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <a href="#analytics-section"
+                class="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-colors"
+                style="background: transparent; color: #8a7f9a; border: 1px solid rgba(255,255,255,0.08);"
+                onmouseover="this.style.color='#a688e0'; this.style.borderColor='rgba(166,136,224,0.3)'; this.style.background='rgba(166,136,224,0.08)'"
+                onmouseout="this.style.color='#8a7f9a'; this.style.borderColor='rgba(255,255,255,0.08)'; this.style.background='transparent'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Analitik & Cost
+            </a>
+
+            {{-- Collapsible overview panel --}}
+            <template x-if="showOverview">
+                <div class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background: rgba(0,0,0,0.7);" @click.self="showOverview = false">
+                    <div class="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-6" style="background: #1a1625; border: 1px solid rgba(212,160,74,0.2);">
+                        <div class="flex items-center justify-between mb-5">
+                            <h2 class="font-mono text-base font-semibold" style="color: #d4a04a;">📖 Ringkasan Cerita</h2>
+                            <button @click="showOverview = false" class="w-7 h-7 flex items-center justify-center rounded-lg" style="color: #5a5368; border: 1px solid rgba(255,255,255,0.08);">✕</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">JUDUL DRAFT</p>
+                                <p class="font-serif font-medium text-base" style="color: #e8e0d0;">{{ $story->title_draft ?? '—' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-mono mb-1" style="color: #8a7f9a;">TEMA</p>
+                                <p class="text-sm" style="color: #e8e0d0;">{{ $story->theme ?? '—' }}</p>
+                            </div>
+                        </div>
+                        @if($story->synopsis)
+                        <div class="mb-5">
+                            <p class="text-xs font-mono mb-2" style="color: #8a7f9a;">SINOPSIS</p>
+                            <div class="prose-novel text-sm">{!! nl2br(e($story->synopsis)) !!}</div>
+                        </div>
+                        @endif
+                        @if($story->characters)
+                        <div class="mb-5">
+                            <p class="text-xs font-mono mb-3" style="color: #8a7f9a;">TOKOH-TOKOH</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($story->characters as $char)
+                                <div class="px-3 py-2 rounded-xl" style="background: rgba(212,160,74,0.06); border: 1px solid rgba(212,160,74,0.12);">
+                                    <p class="text-xs font-semibold" style="color: #d4a04a;">{{ $char['name'] ?? '' }}</p>
+                                    <p class="text-[10px]" style="color: #8a7f9a;">{{ $char['role'] ?? '' }}</p>
+                                    @if(!empty($char['description']))
+                                        <p class="text-xs mt-1" style="color: #e8e0d0; max-width: 20ch;">{{ Str::limit($char['description'], 80) }}</p>
+                                    @endif
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                        @if($story->plot_points)
+                        <div>
+                            <p class="text-xs font-mono mb-3" style="color: #8a7f9a;">PLOT TWIST KUNCI</p>
+                            <div class="space-y-2">
+                                @foreach($story->plot_points as $pp)
+                                <div class="flex items-start gap-3 text-sm">
+                                    <span class="font-mono text-xs px-2 py-0.5 rounded flex-shrink-0 mt-0.5" style="background: rgba(212,160,74,0.1); color: #d4a04a;">Ch.{{ $pp['chapter'] ?? '?' }}</span>
+                                    <p style="color: #e8e0d0;">{{ $pp['event'] ?? '' }}</p>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        @php
+        @endphp
         <div class="novel-card p-5 mb-5" x-data="{ selectedIds: [], selectMode: false }">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="font-mono text-base font-semibold" style="color: #d4a04a;">Konten Bab</h2>
@@ -524,7 +603,9 @@
 
     {{-- Analytics Section --}}
     @if($story->total_input_tokens > 0)
+    <div id="analytics-section">
     @include('admin.novel.stories._analytics', ['story' => $story, 'analyticsData' => $analyticsData ?? []])
+    </div>
     @endif
 
     {{-- Delete button --}}
