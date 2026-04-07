@@ -219,6 +219,14 @@ class SystemConfigSeeder extends Seeder
                 'type' => 'integer',
                 'description' => 'Target jumlah kata yang diinstruksikan ke AI saat generate konten bab.',
             ],
+            [
+                'group' => 'Novel Generator',
+                'label' => 'Mock Mode (Testing)',
+                'key' => 'novel.mock_mode',
+                'value' => 'false',
+                'type' => 'boolean',
+                'description' => 'Aktifkan untuk testing tanpa memanggil Claude API. Semua generate akan mengembalikan dummy text instan (nol token, nol biaya). Matikan di production.',
+            ],
         ];
 
         foreach ($configs as $config) {
