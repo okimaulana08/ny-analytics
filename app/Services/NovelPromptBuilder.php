@@ -8,8 +8,26 @@ use App\Models\NovelWritingGuideline;
 
 class NovelPromptBuilder
 {
-    public function buildSystemPrompt(?NovelWritingGuideline $guideline): string
+    public function buildSystemPrompt(?NovelWritingGuideline $guideline, ?int $totalChapters = null): string
     {
+        // Prepend chapter-count override so the AI never follows hardcoded chapter numbers from the guideline
+        $override = '';
+        if ($totalChapters) {
+            $b1 = max(1, (int) round($totalChapters * 0.33));
+            $b2 = max($b1 + 1, (int) round($totalChapters * 0.66));
+            $tw1 = max(1, (int) round($totalChapters * 0.11));
+            $tw2 = max($tw1 + 1, (int) round($totalChapters * 0.34));
+            $tw3 = max($tw2 + 1, (int) round($totalChapters * 0.59));
+            $b2End = $totalChapters;
+            $override = "⚠️ JUMLAH BAB AKTIF: {$totalChapters} bab.\n"
+                ."Panduan di bawah menggunakan referensi jumlah bab yang berbeda. Gunakan struktur berikut sebagai acuan AKTUAL untuk novel ini:\n"
+                ."- Babak 1: Bab 1–{$b1} (perkenalan & konflik awal)\n"
+                .'- Babak 2: Bab '.($b1 + 1)."–{$b2} (puncak konflik & perlawanan)\n"
+                .'- Babak 3: Bab '.($b2 + 1)."–{$b2End} (resolusi & HEA)\n"
+                ."- Plot twist sekitar: Bab {$tw1}, Bab {$tw2}, Bab {$tw3}\n"
+                ."SEMUA nomor chapter dalam panduan di bawah hanya referensi proporsional — gunakan angka di atas sebagai acuan aktual.\n\n";
+        }
+
         if ($guideline?->system_prompt_prefix) {
             $base = $guideline->system_prompt_prefix;
         } else {
@@ -20,7 +38,7 @@ class NovelPromptBuilder
             $base .= "\n\n## PANDUAN PENULISAN\n".$guideline->content_guidelines;
         }
 
-        return $base;
+        return $override.$base;
     }
 
     /**
@@ -28,10 +46,10 @@ class NovelPromptBuilder
      */
     public function buildOverviewPrompt(NovelStory $story, ?NovelWritingGuideline $guideline): array
     {
-        $system = $this->buildSystemPrompt($guideline);
+        $totalChapters = $story->total_chapters_planned;
+        $system = $this->buildSystemPrompt($guideline, $totalChapters);
 
         $genreLabel = $story->genreLabel();
-        $totalChapters = $story->total_chapters_planned;
         $notes = $story->overview_prompt_notes ? "\nCatatan tambahan dari editor: {$story->overview_prompt_notes}" : '';
 
         $characterArchetypes = '';
@@ -43,7 +61,7 @@ class NovelPromptBuilder
         }
 
         $plotNotes = $guideline?->plot_structure_notes
-            ? "\n\nSTRUKTUR PLOT:\n{$guideline->plot_structure_notes}"
+            ? "\n\nSTRUKTUR PLOT (sesuaikan proporsional dengan {$totalChapters} bab aktif):\n{$guideline->plot_structure_notes}"
             : '';
 
         $user = <<<EOT
@@ -81,9 +99,8 @@ EOT;
      */
     public function buildAllOutlinesPrompt(NovelStory $story, ?NovelWritingGuideline $guideline): array
     {
-        $system = $this->buildSystemPrompt($guideline);
-
         $totalChapters = $story->total_chapters_planned;
+        $system = $this->buildSystemPrompt($guideline, $totalChapters);
         $targetWords = $guideline?->target_chapter_word_count ?? 1500;
 
         $characters = '';
@@ -139,7 +156,7 @@ EOT;
     public function buildSingleOutlinePrompt(NovelChapter $chapter, ?NovelWritingGuideline $guideline): array
     {
         $story = $chapter->story;
-        $system = $this->buildSystemPrompt($guideline);
+        $system = $this->buildSystemPrompt($guideline, $story->total_chapters_planned);
 
         $targetWords = $guideline?->target_chapter_word_count ?? 1500;
 
@@ -182,7 +199,7 @@ EOT;
     public function buildChapterContentPrompt(NovelChapter $chapter, ?NovelWritingGuideline $guideline): array
     {
         $story = $chapter->story;
-        $system = $this->buildSystemPrompt($guideline);
+        $system = $this->buildSystemPrompt($guideline, $story->total_chapters_planned);
 
         $targetWords = $guideline?->target_chapter_word_count ?? 1500;
         $pov = $guideline?->narrative_pov === 'first_person' ? 'orang pertama (AKU)' : 'orang ketiga';
