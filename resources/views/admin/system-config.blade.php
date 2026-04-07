@@ -28,12 +28,6 @@
     </form>
 </div>
 
-@if(session('success'))
-<div class="mb-5 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 px-4 py-3 text-sm text-green-700 dark:text-green-400">
-    {{ session('success') }}
-</div>
-@endif
-
 @if($errors->any())
 <div class="mb-5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
     {{ $errors->first() }}
