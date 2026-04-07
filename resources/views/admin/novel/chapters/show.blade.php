@@ -279,7 +279,7 @@
                 {{-- Content actions --}}
                 @if(in_array($chapter->content_status, ['approved', 'revision_requested']))
                 <div x-show="!editContent">
-                <div class="space-y-2 pt-4 mt-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                <div class="space-y-2 pt-4 mt-4 mb-4" style="border-top: 1px solid rgba(255,255,255,0.05);">
                     <div class="flex items-center gap-2 flex-wrap">
                         <button onclick="document.getElementById('revision-form').classList.toggle('hidden')" class="btn-ghost text-sm">
                             Minta Revisi AI

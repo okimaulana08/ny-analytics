@@ -291,8 +291,7 @@
                 </div>
                 <div class="w-full rounded-full h-2" style="background: rgba(255,255,255,0.07);">
                     <div class="h-2 rounded-full transition-all duration-500"
-                        style="background: linear-gradient(90deg, #7c5cbf, #a688e0);"
-                        :style="'width: ' + Math.round(((outlineProgress.done + (outlineProgress.failed || 0)) / {{ $story->total_chapters_planned }}) * 100) + '%'"></div>
+                        :style="'background: linear-gradient(90deg, #7c5cbf, #a688e0); width: ' + Math.round(((outlineProgress.done + (outlineProgress.failed || 0)) / {{ $story->total_chapters_planned }}) * 100) + '%'"></div>
                 </div>
                 <template x-if="outlineProgress.failed > 0">
                     <p class="text-xs mt-1.5 text-center" style="color: #f4a0a0;">⚠ Ada bab yang gagal — akan muncul setelah selesai untuk di-regenerate</p>
@@ -364,7 +363,7 @@
                     @if($generatingCount > 0)
                         <span class="text-xs font-mono badge-generating px-2 py-0.5 rounded-full">⟳ {{ $generatingCount }} generating</span>
                     @endif
-                    <span class="text-xs font-mono" style="color: #8a7f9a;">{{ $approvedCount }}/{{ $total }} approved</span>
+                    <span class="text-xs font-mono" style="color: #8a7f9a;">{{ $approvedCount }}/{{ $total }} selesai</span>
                 </div>
             </div>
 
@@ -463,7 +462,7 @@
                     <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-failed">outline gagal</span>
                     @else
                     <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full badge-{{ $chapter->content_status }}">
-                        {{ $chapter->content_status }}
+                        {{ $chapter->content_status === 'approved' ? 'selesai' : $chapter->content_status }}
                     </span>
                     @endif
                 </div>
@@ -544,7 +543,7 @@ function storyWorkspace(storyId, initialStatus) {
         pollInterval: null,
 
         init() {
-            const pendingStatuses = ['draft', 'overview_pending', 'outline_pending'];
+            const pendingStatuses = ['draft', 'overview_pending', 'outline_pending', 'content_in_progress'];
             if (pendingStatuses.includes(this.status)) {
                 this.startPolling();
             }
