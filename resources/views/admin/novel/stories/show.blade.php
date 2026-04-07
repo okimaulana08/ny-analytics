@@ -366,14 +366,21 @@
                 Ringkasan
                 <svg class="w-3 h-3 transition-transform" :class="showOverview ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
-            <a href="#analytics-section"
+            <button onclick="
+                    const el = document.getElementById('analytics-section');
+                    if (!el) return;
+                    const alpine = el.querySelector('[x-data]');
+                    if (alpine && alpine._x_dataStack) {
+                        alpine._x_dataStack[0].open = true;
+                    }
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });"
                 class="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-colors"
                 style="background: transparent; color: #8a7f9a; border: 1px solid rgba(255,255,255,0.08);"
                 onmouseover="this.style.color='#a688e0'; this.style.borderColor='rgba(166,136,224,0.3)'; this.style.background='rgba(166,136,224,0.08)'"
                 onmouseout="this.style.color='#8a7f9a'; this.style.borderColor='rgba(255,255,255,0.08)'; this.style.background='transparent'">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 Analitik & Cost
-            </a>
+            </button>
 
             {{-- Collapsible overview panel --}}
             <template x-if="showOverview">
@@ -602,9 +609,9 @@
     @endif
 
     {{-- Analytics Section --}}
-    @if($story->total_input_tokens > 0)
+    @if(count($analyticsData) > 0)
     <div id="analytics-section">
-    @include('admin.novel.stories._analytics', ['story' => $story, 'analyticsData' => $analyticsData ?? []])
+    @include('admin.novel.stories._analytics', ['story' => $story, 'analyticsData' => $analyticsData])
     </div>
     @endif
 

@@ -63,8 +63,8 @@ class NovelStoryController extends Controller
         $story->load(['guideline', 'chapters', 'creator', 'aiUsages']);
 
         $analyticsData = [];
-        if ($story->total_input_tokens > 0) {
-            $usages = $story->aiUsages;
+        $usages = $story->aiUsages;
+        if ($usages->isNotEmpty()) {
 
             // Cost per stage
             $costPerStage = [
