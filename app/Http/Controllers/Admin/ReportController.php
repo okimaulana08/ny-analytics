@@ -252,31 +252,27 @@ class ReportController extends Controller
         ');
 
         $churned = $db->select("
-            SELECT * FROM (
-                SELECT u.name, u.email, MAX(p.phone_number) AS phone_number, u.last_login_at,
-                       MAX(t.paid_at) AS last_paid_at,
-                       MAX(um2.expired_at) AS membership_expired_at,
-                       MAX(mp.name) AS last_plan,
-                       COUNT(t.id) AS total_trx,
-                       SUM(t.total_amount) AS lifetime_value
-                FROM users u
-                JOIN transactions t ON t.user_id = u.id AND t.status = 'paid'
-                JOIN membership_plans mp ON mp.id = t.plan_id
-                LEFT JOIN user_memberships um ON um.user_id = u.id AND um.is_active = 1
-                LEFT JOIN user_memberships um2 ON um2.user_id = u.id
-                LEFT JOIN profile p ON p.user_id = u.id
-                WHERE um.user_id IS NULL
-                GROUP BY u.id, u.name, u.email, u.last_login_at
-            ) ch
-            WHERE membership_expired_at < NOW()
-              AND last_paid_at < NOW() - INTERVAL 7 DAY
+            SELECT u.name, u.email, MAX(p.phone_number) AS phone_number, u.last_login_at,
+                   MAX(t.paid_at) AS last_paid_at,
+                   MAX(um2.expired_at) AS membership_expired_at,
+                   MAX(mp.name) AS last_plan,
+                   COUNT(t.id) AS total_trx,
+                   SUM(t.total_amount) AS lifetime_value
+            FROM users u
+            JOIN transactions t ON t.user_id = u.id AND t.status = 'paid'
+            JOIN membership_plans mp ON mp.id = t.plan_id
+            LEFT JOIN user_memberships um ON um.user_id = u.id AND um.expired_at >= NOW()
+            LEFT JOIN user_memberships um2 ON um2.user_id = u.id
+            LEFT JOIN profile p ON p.user_id = u.id
+            WHERE um.user_id IS NULL
+            GROUP BY u.id, u.name, u.email, u.last_login_at
             ORDER BY last_paid_at DESC
         ");
 
         $neverSubscribed = $db->select("
             SELECT u.name, u.email, p.phone_number, u.created_at, u.last_login_at,
                    COUNT(DISTINCT ur.content_id) AS unique_contents,
-                   COUNT(ur.id) AS total_chapters_read,
+                   COUNT(DISTINCT ur.chapter_id) AS total_chapters_read,
                    MAX(ur.created_at) AS last_read_at,
                    DATEDIFF(NOW(), MAX(ur.created_at)) AS days_since_read
             FROM users u
@@ -489,8 +485,9 @@ class ReportController extends Controller
             // KPI aggregates
             $kpi = $db->selectOne("
                 SELECT
-                    COUNT(DISTINCT ur.user_id) AS active_users,
-                    COUNT(ur.id)               AS total_chapters,
+                    COUNT(DISTINCT ur.user_id)    AS active_users,
+                    COUNT(ur.id)                  AS total_chapters,
+                    COUNT(DISTINCT ur.chapter_id) AS unique_chapters,
                     COUNT(DISTINCT ur.content_id) AS total_books,
                     (SELECT COUNT(*) FROM transactions
                      WHERE status = 'paid'
@@ -504,6 +501,7 @@ class ReportController extends Controller
                 SELECT
                     u.id, u.name, u.email, p.phone_number,
                     COUNT(ur.id)                  AS chapters_read,
+                    COUNT(DISTINCT ur.chapter_id) AS unique_chapters_read,
                     COUNT(DISTINCT ur.content_id) AS books_count,
                     MAX(ur.created_at)            AS last_activity,
                     (SELECT COUNT(*) FROM transactions t
@@ -531,8 +529,9 @@ class ReportController extends Controller
                         ur.user_id,
                         c.id AS content_id,
                         c.title,
-                        COUNT(ur.id) AS chapters_read,
-                        MAX(ur.created_at) AS last_read
+                        COUNT(ur.id)                  AS chapters_read,
+                        COUNT(DISTINCT ur.chapter_id) AS unique_chapters_read,
+                        MAX(ur.created_at)            AS last_read
                     FROM user_read ur
                     JOIN content c ON c.id = ur.content_id
                     WHERE ur.user_id IN ({$placeholders})

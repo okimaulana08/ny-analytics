@@ -202,11 +202,11 @@
                         @if($u->phone_number)<div class="text-[11px] text-slate-400 font-mono">{{ $u->phone_number }}</div>@endif
                     </td>
                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $u->plan_name }}</td>
-                    <td class="px-5 py-3 text-center font-mono text-xs text-slate-500" data-val="{{ \Carbon\Carbon::parse($u->expired_at)->format('Y-m-d H:i') }}">{{ \Carbon\Carbon::parse($u->expired_at)->format('d/m/Y H:i') }}</td>
+                    <td class="px-5 py-3 text-center font-mono text-xs text-slate-500" data-val="{{ \Carbon\Carbon::parse($u->expired_at)->format('Y-m-d H:i') }}">{{ \Carbon\Carbon::parse($u->expired_at)->format('d M Y H:i') }}</td>
                     <td class="px-5 py-3 text-center" data-val="{{ $u->days_left }}">
                         <span class="font-mono text-xs font-bold {{ $u->days_left <= 1 ? 'text-red-500' : 'text-amber-500 dark:text-amber-400' }}">{{ $u->days_left }}d</span>
                     </td>
-                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d M Y') : '—' }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'expiring', 'data' => ['nama' => $u->name, 'email' => $u->email, 'plan' => $u->plan_name, 'kadaluarsa' => \Carbon\Carbon::parse($u->expired_at)->format('d M Y'), 'sisa_hari' => $u->days_left]])</td>
                 </tr>
                 @empty
@@ -237,10 +237,10 @@
                         @if($u->phone_number)<div class="text-[11px] text-slate-400 font-mono">{{ $u->phone_number }}</div>@endif
                     </td>
                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $u->last_plan }}</td>
-                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400" data-val="{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400" data-val="{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('d M Y') : '—' }}</td>
                     <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">{{ $u->total_trx }}×</td>
                     <td class="px-5 py-3 text-right font-mono text-xs text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Rp {{ number_format($u->lifetime_value, 0, ',', '.') }}</td>
-                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d M Y') : '—' }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'churned', 'data' => ['nama' => $u->name, 'email' => $u->email, 'plan_terakhir' => $u->last_plan, 'expired' => $u->membership_expired_at ? \Carbon\Carbon::parse($u->membership_expired_at)->format('d M Y') : '-', 'total_trx' => $u->total_trx, 'ltv' => 'Rp ' . number_format($u->lifetime_value, 0, ',', '.')]])</td>
                 </tr>
                 @empty
@@ -272,9 +272,9 @@
                     </td>
                     <td class="px-5 py-3 text-right font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{{ number_format($u->total_chapters_read) }}</td>
                     <td class="px-5 py-3 text-right font-mono text-xs text-slate-500">{{ $u->unique_contents }}</td>
-                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->last_read_at ? \Carbon\Carbon::parse($u->last_read_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->last_read_at ? \Carbon\Carbon::parse($u->last_read_at)->format('d M Y') : '—' }}</td>
                     <td class="px-5 py-3 text-right font-mono text-xs {{ ($u->days_since_read ?? 999) <= 7 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400' }}">{{ $u->days_since_read ?? '—' }}d</td>
-                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($u->created_at)->format('d/m/Y') }}</td>
+                    <td class="px-5 py-3 font-mono text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($u->created_at)->format('d M Y') }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'never', 'data' => ['nama' => $u->name, 'email' => $u->email, 'total_chapter' => number_format($u->total_chapters_read), 'judul_unik' => $u->unique_contents, 'terakhir_baca' => $u->last_read_at ? \Carbon\Carbon::parse($u->last_read_at)->format('d M Y') : '-']])</td>
                 </tr>
                 @empty
@@ -311,8 +311,8 @@
                         @endif
                     </td>
                     <td class="px-5 py-3 text-right font-mono text-xs font-bold {{ ($u->days_inactive ?? 0) >= 60 ? 'text-red-500' : 'text-slate-500 dark:text-slate-400' }}" data-val="{{ $u->days_inactive ?? 0 }}">{{ $u->days_inactive }}d</td>
-                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d/m/Y') : '—' }}</td>
-                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->inactive_reminder_sent_at ? \Carbon\Carbon::parse($u->inactive_reminder_sent_at)->format('d/m/Y') : '—' }}</td>
+                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400" data-val="{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('Y-m-d') : '0000-00-00' }}">{{ $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d M Y') : '—' }}</td>
+                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-400">{{ $u->inactive_reminder_sent_at ? \Carbon\Carbon::parse($u->inactive_reminder_sent_at)->format('d M Y') : '—' }}</td>
                     <td class="px-4 py-3 text-center">@include('admin.partials.wa-btn', ['phone' => $u->phone_number ?? null, 'segment' => 'dormant', 'data' => ['nama' => $u->name, 'email' => $u->email, 'tipe' => $u->dormant_type === 'lapsed_member' ? 'Member Lapsed' : 'Belum Berlangganan', 'hari_tidak_aktif' => $u->days_inactive, 'terakhir_login' => $u->last_login_at ? \Carbon\Carbon::parse($u->last_login_at)->format('d M Y') : '-']])</td>
                 </tr>
                 @empty

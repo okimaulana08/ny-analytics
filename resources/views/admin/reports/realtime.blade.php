@@ -48,9 +48,10 @@
         $books = $tab['bookDetails'];
 
         // Compute chapter & book totals from the user list so they stay in sync
-        $computedChapters = array_sum(array_column(array_map(fn($u) => (array)$u, $users), 'chapters_read'));
-        $allContentIds    = array_merge(...array_map(fn($u) => array_column($books[$u->id] ?? [], 'content_id'), $users));
-        $computedBooks    = count(array_unique($allContentIds));
+        $computedChapters       = array_sum(array_column(array_map(fn($u) => (array)$u, $users), 'chapters_read'));
+        $computedUniqueChapters = array_sum(array_column(array_map(fn($u) => (array)$u, $users), 'unique_chapters_read'));
+        $allContentIds          = array_merge(...array_map(fn($u) => array_column($books[$u->id] ?? [], 'content_id'), $users));
+        $computedBooks          = count(array_unique($allContentIds));
     @endphp
     <div id="tab-panel-{{ $h }}" class="space-y-5 {{ $h !== 1 ? 'hidden' : '' }}">
 
@@ -64,7 +65,10 @@
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">Total Chapter Dibaca</p>
                 <p id="kpi-chapters-{{ $h }}" class="text-2xl font-bold text-blue-500">{{ number_format($computedChapters) }}</p>
-                <p class="text-xs text-slate-400 mt-0.5">dalam {{ $h }} jam terakhir</p>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    <span id="kpi-unique-chapters-{{ $h }}" class="text-blue-400 font-medium">{{ number_format($computedUniqueChapters) }} unik</span>
+                    · {{ $h }} jam terakhir
+                </p>
             </div>
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">Konten Diakses</p>
@@ -157,6 +161,7 @@
                         <tr class="user-row-{{ $h }} hover:bg-slate-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors group"
                             data-book-ids="{{ implode(',', array_column($userBooks, 'content_id')) }}"
                             data-chapters="{{ $user->chapters_read }}"
+                            data-unique-chapters="{{ $user->unique_chapters_read }}"
                             data-books="{{ $user->books_count }}"
                             data-expand-id="books-{{ $h }}-{{ $user->id }}"
                             onclick="toggleBooks('{{ $h }}-{{ $user->id }}')">
@@ -204,6 +209,9 @@
                             </td>
                             <td class="px-4 py-3.5 text-center">
                                 <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $user->chapters_read }}</span>
+                                @if($user->unique_chapters_read < $user->chapters_read)
+                                <div class="text-[10px] text-blue-400 mt-0.5">{{ $user->unique_chapters_read }} unik</div>
+                                @endif
                             </td>
                             <td class="px-4 py-3.5 text-center">
                                 <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $user->books_count }}</span>
@@ -252,8 +260,11 @@
                                                 {{ $book->title }}
                                             </p>
                                             <p class="text-[11px] text-slate-400 mt-0.5">
-                                                {{ $book->chapters_read }} chapter ·
-                                                terakhir {{ \Carbon\Carbon::parse($book->last_read)->diffForHumans() }}
+                                                {{ $book->chapters_read }} chapter
+                                                @if($book->unique_chapters_read < $book->chapters_read)
+                                                <span class="text-blue-400">({{ $book->unique_chapters_read }} unik)</span>
+                                                @endif
+                                                · terakhir {{ \Carbon\Carbon::parse($book->last_read)->diffForHumans() }}
                                             </p>
                                         </div>
                                     </div>
@@ -304,7 +315,7 @@
     // Filter table by book
     function filterByBook(h, contentId) {
         const rows = document.querySelectorAll('.user-row-' + h);
-        let visible = 0, totalChapters = 0, bookSet = new Set();
+        let visible = 0, totalChapters = 0, totalUniqueChapters = 0, bookSet = new Set();
 
         rows.forEach(tr => {
             const ids      = (tr.dataset.bookIds || '').split(',').filter(Boolean);
@@ -320,7 +331,8 @@
             }
             if (match) {
                 visible++;
-                totalChapters += parseInt(tr.dataset.chapters || 0, 10);
+                totalChapters       += parseInt(tr.dataset.chapters || 0, 10);
+                totalUniqueChapters += parseInt(tr.dataset.uniqueChapters || 0, 10);
                 ids.forEach(id => { if (id) bookSet.add(id); });
             }
         });
@@ -331,11 +343,13 @@
 
         // Sync KPI cards with visible rows
         const kpiUsers    = document.getElementById('kpi-users-' + h);
-        const kpiChapters = document.getElementById('kpi-chapters-' + h);
-        const kpiBooks    = document.getElementById('kpi-books-' + h);
-        if (kpiUsers)    kpiUsers.textContent    = visible.toLocaleString();
-        if (kpiChapters) kpiChapters.textContent = totalChapters.toLocaleString();
-        if (kpiBooks)    kpiBooks.textContent     = (contentId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
+        const kpiChapters       = document.getElementById('kpi-chapters-' + h);
+        const kpiUniqueChapters = document.getElementById('kpi-unique-chapters-' + h);
+        const kpiBooks          = document.getElementById('kpi-books-' + h);
+        if (kpiUsers)           kpiUsers.textContent           = visible.toLocaleString();
+        if (kpiChapters)        kpiChapters.textContent        = totalChapters.toLocaleString();
+        if (kpiUniqueChapters)  kpiUniqueChapters.textContent  = totalUniqueChapters.toLocaleString() + ' unik';
+        if (kpiBooks)           kpiBooks.textContent           = (contentId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
     }
 
     // Auto-refresh every 90 seconds
