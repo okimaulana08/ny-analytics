@@ -29,6 +29,13 @@ class NovelStory extends Model
         'total_input_tokens',
         'total_output_tokens',
         'created_by',
+        'novelya_story_id',
+        'novelya_author_id',
+        'novelya_category_id',
+        'novelya_cover_path',
+        'published_to_novelya_at',
+        'novelya_publish_error',
+        'novelya_chapters_published',
     ];
 
     protected function casts(): array
@@ -38,6 +45,7 @@ class NovelStory extends Model
             'plot_points' => 'array',
             'approved_overview_at' => 'datetime',
             'approved_outline_at' => 'datetime',
+            'published_to_novelya_at' => 'datetime',
         ];
     }
 
@@ -129,6 +137,17 @@ class NovelStory extends Model
             'published' => 'Dipublikasikan',
             default => $this->status,
         };
+    }
+
+    public function isPublishedToNovelya(): bool
+    {
+        return $this->novelya_story_id !== null && $this->novelya_publish_error === null;
+    }
+
+    public function hasPartialPublish(): bool
+    {
+        return $this->novelya_story_id !== null
+            && $this->novelya_chapters_published < $this->chapters()->where('content_status', 'approved')->count();
     }
 
     public function genreLabel(): string

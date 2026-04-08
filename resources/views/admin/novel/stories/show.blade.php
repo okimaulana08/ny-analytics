@@ -603,6 +603,24 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     Export DOCX
                 </a>
+                @if($story->isPublishedToNovelya())
+                    <span class="text-xs flex items-center gap-1.5 px-3 py-2 rounded-lg" style="background: rgba(45,106,79,0.2); color: #95d5b2; border: 1px solid rgba(149,213,178,0.2);">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Published {{ $story->published_to_novelya_at?->diffForHumans() }}
+                    </span>
+                @elseif($story->hasPartialPublish())
+                    <a href="{{ route('admin.novel.stories.publish', $story) }}"
+                        class="text-xs flex items-center gap-1.5 px-3 py-2 rounded-lg" style="background: rgba(123,79,18,0.2); color: #ffd166; border: 1px solid rgba(255,209,102,0.2);">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Retry Publish
+                    </a>
+                @else
+                    <a href="{{ route('admin.novel.stories.publish', $story) }}"
+                        class="btn-outline text-xs flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        Publish ke Novelya
+                    </a>
+                @endif
             </div>
         </div>
     </div>

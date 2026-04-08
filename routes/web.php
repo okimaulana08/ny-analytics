@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\Novel\NovelChapterController;
 use App\Http\Controllers\Admin\Novel\NovelExportController;
 use App\Http\Controllers\Admin\Novel\NovelStoryController;
 use App\Http\Controllers\Admin\Novel\NovelWritingGuidelineController;
+use App\Http\Controllers\Admin\Novel\NovelyaPublishController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ReleaseNoteController;
 use App\Http\Controllers\Admin\ReportController;
@@ -164,6 +165,14 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
         Route::get('/stories/{story}/export/pdf', [NovelExportController::class, 'storyPdf'])->name('stories.export-pdf');
         Route::get('/stories/{story}/export/docx', [NovelExportController::class, 'storyDocx'])->name('stories.export-docx');
         Route::get('/stories/{story}/chapters/{chapter}/export/pdf', [NovelExportController::class, 'chapterPdf'])->name('chapters.export-pdf');
+
+        // Novelya Publish
+        Route::get('/stories/{story}/publish', [NovelyaPublishController::class, 'showForm'])->name('stories.publish');
+        Route::get('/stories/{story}/publish/search-authors', [NovelyaPublishController::class, 'searchAuthors'])->name('stories.publish.search-authors');
+        Route::post('/stories/{story}/publish/upload-cover', [NovelyaPublishController::class, 'uploadCover'])->name('stories.publish.upload-cover');
+        Route::post('/stories/{story}/publish/preview', [NovelyaPublishController::class, 'preview'])->name('stories.publish.preview');
+        Route::post('/stories/{story}/publish/execute', [NovelyaPublishController::class, 'execute'])->name('stories.publish.execute');
+        Route::post('/stories/{story}/publish/retry-chapters', [NovelyaPublishController::class, 'retryChapters'])->name('stories.publish.retry-chapters');
 
         // Writing Guidelines
         Route::resource('guidelines', NovelWritingGuidelineController::class)->except(['show']);

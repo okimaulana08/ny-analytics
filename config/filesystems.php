@@ -60,6 +60,18 @@ return [
             'report' => false,
         ],
 
+        'do_spaces' => [
+            'driver' => 's3',
+            'key' => env('DO_SPACES_KEY'),
+            'secret' => env('DO_SPACES_SECRET'),
+            'region' => env('DO_SPACES_REGION', 'sgp1'),
+            'bucket' => env('DO_SPACES_BUCKET', 'novelya'),
+            'endpoint' => env('DO_SPACES_ENDPOINT', 'https://sgp1.digitaloceanspaces.com'),
+            'url' => env('DO_SPACES_CDN_URL', 'https://novelya.sgp1.digitaloceanspaces.com'),
+            'visibility' => 'public',
+            'throw' => true,
+        ],
+
     ],
 
     /*
