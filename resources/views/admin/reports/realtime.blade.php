@@ -106,7 +106,20 @@
                             {{ count($users) }} user
                         </span>
                     </h2>
-                    <p class="text-xs text-slate-400">Klik baris untuk lihat detail buku</p>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400">Per halaman:</span>
+                        <div class="flex gap-0.5 p-0.5 rounded-lg bg-slate-100 dark:bg-white/[0.05]">
+                            @foreach([30, 50] as $pp)
+                            <button onclick="setPerPage({{ $h }}, {{ $pp }})"
+                                id="pp-btn-{{ $h }}-{{ $pp }}"
+                                class="px-2.5 py-0.5 text-xs font-medium rounded-md transition-all
+                                       {{ $pp === 30 ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white' }}">
+                                {{ $pp }}
+                            </button>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-slate-400">· Klik baris untuk detail buku</p>
+                    </div>
                 </div>
 
                 {{-- Filters row --}}
@@ -404,6 +417,12 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Pagination controls --}}
+            <div id="pagination-{{ $h }}" class="hidden px-5 py-3 border-t border-slate-100 dark:border-white/[0.05] flex items-center justify-between">
+                <p id="page-info-{{ $h }}" class="text-xs text-slate-400"></p>
+                <div class="flex items-center gap-1" id="page-buttons-{{ $h }}"></div>
+            </div>
             @endif
         </div>
 
@@ -415,9 +434,14 @@
 
 @push('scripts')
 <script>
-    // ── User-type filter state per tab (default: registered) ──
+    // ── State per tab ──
     const userTypeFilter = { 1: 'reg', 6: 'reg', 24: 'reg' };
     const bookFilterState = { 1: '', 6: '', 24: '' };
+    const perPage  = { 1: 30, 6: 30, 24: 30 };
+    const currPage = { 1: 1,  6: 1,  24: 1  };
+
+    // matchedRows[h] = array of <tr> elements that pass current filters (main rows only, not expand rows)
+    const matchedRows = { 1: [], 6: [], 24: [] };
 
     // ── Tab switching ──
     function switchTab(h) {
@@ -435,8 +459,6 @@
 
     // ── Expand/collapse book detail rows ──
     function toggleBooks(key) {
-        // Registered: expand row id = "books-{h}-{userId}", chevron id = "chevron-{h}-{userId}"
-        // Anonymous:  expand row id = "anon-{h}-{hash}",    chevron id = "chevron-anon-{h}-{hash}"
         const row     = document.getElementById('books-' + key) || document.getElementById(key);
         const chevron = document.getElementById('chevron-' + key);
         if (!row) return;
@@ -444,11 +466,27 @@
         if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
     }
 
+    // ── Per-page selector ──
+    function setPerPage(h, pp) {
+        perPage[h]  = pp;
+        currPage[h] = 1;
+        [30, 50].forEach(p => {
+            const btn = document.getElementById('pp-btn-' + h + '-' + p);
+            if (!btn) return;
+            if (p === pp) {
+                btn.classList.add('bg-white', 'dark:bg-white/10', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+                btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+            } else {
+                btn.classList.remove('bg-white', 'dark:bg-white/10', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+                btn.classList.add('text-slate-500', 'dark:text-slate-400');
+            }
+        });
+        renderPage(h);
+    }
+
     // ── User-type filter ──
     function filterByUserType(h, type) {
         userTypeFilter[h] = type;
-
-        // Update toggle button styles
         ['reg', 'anon', 'all'].forEach(t => {
             const btn = document.getElementById('ut-btn-' + h + '-' + t);
             if (!btn) return;
@@ -460,7 +498,6 @@
                 btn.classList.add('text-slate-500', 'dark:text-slate-400');
             }
         });
-
         applyFilters(h);
     }
 
@@ -470,19 +507,19 @@
         applyFilters(h);
     }
 
-    // ── Core: apply both filters and sync KPI ──
+    // ── Core: determine matching rows, update KPI, reset to page 1 ──
     function applyFilters(h) {
-        const uType    = userTypeFilter[h];
-        const bookId   = bookFilterState[h];
-        const rows     = document.querySelectorAll('.user-row-' + h);
-        let visible = 0, totalChapters = 0, totalUniqueChapters = 0, bookSet = new Set();
+        const uType  = userTypeFilter[h];
+        const bookId = bookFilterState[h];
+        const rows   = document.querySelectorAll('.user-row-' + h);
+
+        let matched = [], totalChapters = 0, totalUniqueChapters = 0, bookSet = new Set();
 
         rows.forEach(tr => {
-            const rowType  = tr.dataset.userType;  // 'registered' | 'anonymous'
+            const rowType  = tr.dataset.userType;
             const ids      = (tr.dataset.bookIds || '').split(',').filter(Boolean);
             const expandId = tr.dataset.expandId;
-            // Registered expand: id="books-{expandId}", Anonymous expand: id="{expandId}" directly
-            const expand = expandId
+            const expand   = expandId
                 ? (document.getElementById('books-' + expandId) || document.getElementById(expandId))
                 : null;
 
@@ -490,38 +527,130 @@
                 || (uType === 'reg'  && rowType === 'registered')
                 || (uType === 'anon' && rowType === 'anonymous');
             const bookMatch = !bookId || ids.includes(String(bookId));
-            const match     = typeMatch && bookMatch;
 
-            tr.classList.toggle('hidden', !match);
-            if (!match && expand) {
-                expand.classList.add('hidden');
-                // Reset chevron — id pattern: "chevron-{expandId}" works for both types
-                const chevron = document.getElementById('chevron-' + expandId);
-                if (chevron) chevron.style.transform = '';
-            }
-
-            if (match) {
-                visible++;
+            if (typeMatch && bookMatch) {
+                matched.push(tr);
                 totalChapters       += parseInt(tr.dataset.chapters || 0, 10);
                 totalUniqueChapters += parseInt(tr.dataset.uniqueChapters || 0, 10);
                 ids.forEach(id => { if (id) bookSet.add(id); });
+            } else {
+                // Hide non-matching rows and collapse their expand rows
+                tr.classList.add('hidden');
+                if (expand) {
+                    expand.classList.add('hidden');
+                    const chevron = document.getElementById('chevron-' + expandId);
+                    if (chevron) chevron.style.transform = '';
+                }
             }
         });
 
-        // Update count badge
-        const badge = document.getElementById('user-count-' + h);
-        if (badge) badge.textContent = visible + ' user';
+        matchedRows[h] = matched;
+        currPage[h]    = 1;
 
-        // Sync KPI cards
+        // Update KPI
+        const badge = document.getElementById('user-count-' + h);
+        if (badge) badge.textContent = matched.length + ' user';
+
         const kpiUsers          = document.getElementById('kpi-users-' + h);
         const kpiChapters       = document.getElementById('kpi-chapters-' + h);
         const kpiUniqueChapters = document.getElementById('kpi-unique-chapters-' + h);
         const kpiBooks          = document.getElementById('kpi-books-' + h);
-        if (kpiUsers)           kpiUsers.textContent           = visible.toLocaleString();
-        if (kpiChapters)        kpiChapters.textContent        = totalChapters.toLocaleString();
-        if (kpiUniqueChapters)  kpiUniqueChapters.textContent  = totalUniqueChapters.toLocaleString() + ' unik';
-        if (kpiBooks)           kpiBooks.textContent           = (bookId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
+        if (kpiUsers)           kpiUsers.textContent          = matched.length.toLocaleString();
+        if (kpiChapters)        kpiChapters.textContent       = totalChapters.toLocaleString();
+        if (kpiUniqueChapters)  kpiUniqueChapters.textContent = totalUniqueChapters.toLocaleString() + ' unik';
+        if (kpiBooks)           kpiBooks.textContent          = (bookId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
+
+        renderPage(h);
     }
+
+    // ── Render current page: show only the slice of matchedRows ──
+    function renderPage(h) {
+        const rows    = matchedRows[h];
+        const pp      = perPage[h];
+        const page    = currPage[h];
+        const total   = rows.length;
+        const pages   = Math.ceil(total / pp) || 1;
+        const start   = (page - 1) * pp;   // 0-based index
+        const end     = start + pp;
+
+        rows.forEach((tr, i) => {
+            const visible = i >= start && i < end;
+            tr.classList.toggle('hidden', !visible);
+
+            // Also hide any open expand row when its main row goes offscreen
+            const expandId = tr.dataset.expandId;
+            const expand   = expandId
+                ? (document.getElementById('books-' + expandId) || document.getElementById(expandId))
+                : null;
+            if (!visible && expand) {
+                expand.classList.add('hidden');
+                const chevron = document.getElementById('chevron-' + expandId);
+                if (chevron) chevron.style.transform = '';
+            }
+        });
+
+        // Pagination bar
+        const bar  = document.getElementById('pagination-' + h);
+        const info = document.getElementById('page-info-' + h);
+        const btns = document.getElementById('page-buttons-' + h);
+        if (!bar) return;
+
+        if (total <= pp) {
+            bar.classList.add('hidden');
+            return;
+        }
+
+        bar.classList.remove('hidden');
+        const from = start + 1, to = Math.min(end, total);
+        info.textContent = from + '–' + to + ' dari ' + total + ' user';
+
+        // Build page buttons (max 7 shown with ellipsis)
+        btns.innerHTML = '';
+        const btnBase   = 'px-2.5 py-1 text-xs rounded-md transition-colors ';
+        const btnActive = btnBase + 'bg-blue-600 text-white font-medium';
+        const btnNormal = btnBase + 'border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]';
+        const btnDisabled = btnBase + 'text-slate-300 dark:text-slate-600 cursor-default';
+
+        function addBtn(label, targetPage, disabled, active) {
+            const b = document.createElement('button');
+            b.textContent = label;
+            b.className   = active ? btnActive : (disabled ? btnDisabled : btnNormal);
+            if (!disabled && !active) b.onclick = () => goPage(h, targetPage);
+            btns.appendChild(b);
+        }
+
+        addBtn('‹', page - 1, page === 1, false);
+
+        // Page number range
+        let pageNums = [];
+        if (pages <= 7) {
+            pageNums = Array.from({ length: pages }, (_, i) => i + 1);
+        } else {
+            pageNums = [1];
+            if (page > 3)             pageNums.push('…');
+            for (let p = Math.max(2, page - 1); p <= Math.min(pages - 1, page + 1); p++) pageNums.push(p);
+            if (page < pages - 2)     pageNums.push('…');
+            pageNums.push(pages);
+        }
+
+        pageNums.forEach(p => {
+            if (p === '…') { addBtn('…', null, true, false); }
+            else           { addBtn(p, p, false, p === page); }
+        });
+
+        addBtn('›', page + 1, page === pages, false);
+    }
+
+    function goPage(h, page) {
+        currPage[h] = page;
+        renderPage(h);
+        // Scroll table into view smoothly
+        const panel = document.getElementById('tab-panel-' + h);
+        if (panel) panel.querySelector('table')?.closest('.flat-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── Init: run applyFilters on load for each tab so pagination is set up ──
+    [1, 6, 24].forEach(h => applyFilters(h));
 
     // ── Auto-refresh every 90 seconds ──
     let countdown = 90;
