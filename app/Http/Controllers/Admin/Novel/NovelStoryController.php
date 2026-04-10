@@ -295,9 +295,9 @@ class NovelStoryController extends Controller
         $i = 0;
         foreach ($chapters as $chapter) {
             $chapter->update(['content_status' => 'generating']);
-            // Stagger 20s each: content prompt ~10,000 tokens → max 3 safe jobs/min
+            // Stagger 45s each: output limit 8k TPM, ~3k output/chapter → max 2 safe jobs/min (45s = safety margin)
             GenerateChapterContentJob::dispatch($chapter->id, $adminId)
-                ->delay(now()->addSeconds($i * 20));
+                ->delay(now()->addSeconds($i * 45));
             $i++;
         }
 

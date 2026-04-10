@@ -66,9 +66,18 @@ class GenerateChapterContentJob implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        Log::error("GenerateChapterContentJob: Chapter #{$this->chapterId} failed", [
-            'message' => $exception->getMessage(),
-        ]);
+        $isRateLimit = str_contains($exception->getMessage(), '429')
+            || str_contains($exception->getMessage(), 'rate_limit');
+
+        if ($isRateLimit) {
+            Log::warning("GenerateChapterContentJob: Chapter #{$this->chapterId} hit Claude rate limit — pertimbangkan naikkan stagger delay di generateBulkContent()", [
+                'message' => $exception->getMessage(),
+            ]);
+        } else {
+            Log::error("GenerateChapterContentJob: Chapter #{$this->chapterId} failed", [
+                'message' => $exception->getMessage(),
+            ]);
+        }
 
         $chapter = NovelChapter::find($this->chapterId);
 
