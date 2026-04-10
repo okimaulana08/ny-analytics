@@ -193,7 +193,7 @@
                         <span class="badge badge-{{ $tx->status }}">{{ ucfirst($tx->status) }}</span>
                     </td>
                     <td class="px-5 py-3 text-right font-mono text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                        {{ \Carbon\Carbon::parse($tx->created_at)->format('d/m H:i') }}
+                        {{ \Carbon\Carbon::parse($tx->display_time)->format('d/m H:i') }}
                     </td>
                 </tr>
                 @empty
