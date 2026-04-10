@@ -489,6 +489,7 @@ class ReportController extends Controller
                     COUNT(ur.id)                  AS total_chapters,
                     COUNT(DISTINCT ur.chapter_id) AS unique_chapters,
                     COUNT(DISTINCT ur.content_id) AS total_books,
+                    COUNT(DISTINCT CASE WHEN ur.user_id IS NULL THEN ur.session_id END) AS anon_sessions,
                     (SELECT COUNT(*) FROM transactions
                      WHERE status = 'paid'
                        AND created_at >= NOW() - INTERVAL {$h} HOUR) AS paid_tx
@@ -496,7 +497,7 @@ class ReportController extends Controller
                 WHERE ur.created_at >= NOW() - INTERVAL {$h} HOUR
             ");
 
-            // Per-user activity
+            // Per-user activity (registered only)
             $users = $db->select("
                 SELECT
                     u.id, u.name, u.email, p.phone_number,
@@ -519,7 +520,7 @@ class ReportController extends Controller
                 ORDER BY last_activity DESC
             ");
 
-            // Book list per user (one batch query)
+            // Book list per registered user (one batch query)
             $bookDetails = [];
             if (! empty($users)) {
                 $ids = array_map(fn ($u) => $u->id, $users);
@@ -545,7 +546,49 @@ class ReportController extends Controller
                 }
             }
 
-            $tabData[$h] = compact('kpi', 'users', 'bookDetails');
+            // Anonymous sessions
+            $anonUsers = $db->select("
+                SELECT
+                    ur.session_id,
+                    COUNT(ur.id)                  AS chapters_read,
+                    COUNT(DISTINCT ur.chapter_id) AS unique_chapters_read,
+                    COUNT(DISTINCT ur.content_id) AS books_count,
+                    MAX(ur.created_at)            AS last_activity
+                FROM user_read ur
+                WHERE ur.user_id IS NULL
+                  AND ur.created_at >= NOW() - INTERVAL {$h} HOUR
+                GROUP BY ur.session_id
+                ORDER BY last_activity DESC
+            ");
+
+            // Book list per anonymous session (one batch query)
+            $anonBookDetails = [];
+            if (! empty($anonUsers)) {
+                $sessionIds = array_map(fn ($a) => $a->session_id, $anonUsers);
+                $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
+                $anonBooks = $db->select("
+                    SELECT
+                        ur.session_id,
+                        c.id AS content_id,
+                        c.title,
+                        COUNT(ur.id)                  AS chapters_read,
+                        COUNT(DISTINCT ur.chapter_id) AS unique_chapters_read,
+                        MAX(ur.created_at)            AS last_read
+                    FROM user_read ur
+                    JOIN content c ON c.id = ur.content_id
+                    WHERE ur.session_id IN ({$placeholders})
+                      AND ur.user_id IS NULL
+                      AND ur.created_at >= NOW() - INTERVAL {$h} HOUR
+                    GROUP BY ur.session_id, c.id, c.title
+                    ORDER BY ur.session_id, last_read DESC
+                ", $sessionIds);
+
+                foreach ($anonBooks as $book) {
+                    $anonBookDetails[$book->session_id][] = $book;
+                }
+            }
+
+            $tabData[$h] = compact('kpi', 'users', 'bookDetails', 'anonUsers', 'anonBookDetails');
         }
 
         $generatedAt = now()->format('d M Y, H:i:s');

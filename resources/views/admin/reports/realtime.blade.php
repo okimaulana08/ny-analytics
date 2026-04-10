@@ -42,16 +42,28 @@
     {{-- Tab Panels --}}
     @foreach([1, 6, 24] as $h)
     @php
-        $tab   = $tabData[$h];
-        $kpi   = $tab['kpi'];
-        $users = $tab['users'];
-        $books = $tab['bookDetails'];
+        $tab            = $tabData[$h];
+        $kpi            = $tab['kpi'];
+        $users          = $tab['users'];
+        $books          = $tab['bookDetails'];
+        $anonUsers      = $tab['anonUsers'];
+        $anonBookDets   = $tab['anonBookDetails'];
 
-        // Compute chapter & book totals from the user list so they stay in sync
+        // Compute totals from both registered + anonymous (for KPI cards on initial load)
         $computedChapters       = array_sum(array_column(array_map(fn($u) => (array)$u, $users), 'chapters_read'));
         $computedUniqueChapters = array_sum(array_column(array_map(fn($u) => (array)$u, $users), 'unique_chapters_read'));
-        $allContentIds          = array_merge(...array_map(fn($u) => array_column($books[$u->id] ?? [], 'content_id'), $users));
+        $allContentIds          = array_merge(...(array_map(fn($u) => array_column($books[$u->id] ?? [], 'content_id'), $users) ?: [[]]));
         $computedBooks          = count(array_unique($allContentIds));
+
+        // Collect unique books for dropdown (registered + anon)
+        $allBooks = [];
+        foreach ($books as $userBookList) {
+            foreach ($userBookList as $b) { $allBooks[$b->content_id] = $b->title; }
+        }
+        foreach ($anonBookDets as $anonBookList) {
+            foreach ($anonBookList as $b) { $allBooks[$b->content_id] = $b->title; }
+        }
+        asort($allBooks);
     @endphp
     <div id="tab-panel-{{ $h }}" class="space-y-5 {{ $h !== 1 ? 'hidden' : '' }}">
 
@@ -60,7 +72,9 @@
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">User Aktif</p>
                 <p id="kpi-users-{{ $h }}" class="text-2xl font-bold text-slate-800 dark:text-white">{{ number_format(count($users)) }}</p>
-                <p class="text-xs text-slate-400 mt-0.5">sedang/baru baca</p>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    <span id="kpi-users-breakdown-{{ $h }}">{{ number_format($kpi->active_users) }} login · {{ number_format($kpi->anon_sessions) }} anon</span>
+                </p>
             </div>
             <div class="glass-card p-5">
                 <p class="text-xs text-slate-400 mb-1">Total Chapter Dibaca</p>
@@ -94,18 +108,26 @@
                     </h2>
                     <p class="text-xs text-slate-400">Klik baris untuk lihat detail buku</p>
                 </div>
-                @if(!empty($users))
-                @php
-                    // Collect unique books for this tab's dropdown
-                    $allBooks = [];
-                    foreach ($books as $userBookList) {
-                        foreach ($userBookList as $b) {
-                            $allBooks[$b->content_id] = $b->title;
-                        }
-                    }
-                    asort($allBooks);
-                @endphp
-                <div class="flex items-center gap-2">
+
+                {{-- Filters row --}}
+                <div class="flex flex-wrap items-center gap-2">
+
+                    {{-- User-type filter --}}
+                    <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-100 dark:bg-white/[0.05]">
+                        @foreach(['reg' => 'Terdaftar', 'anon' => 'Anonymous', 'all' => 'Semua'] as $type => $label)
+                        <button onclick="filterByUserType({{ $h }}, '{{ $type }}')"
+                            id="ut-btn-{{ $h }}-{{ $type }}"
+                            class="px-3 py-1 text-xs font-medium rounded-md transition-all
+                                   {{ $type === 'reg'
+                                       ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm'
+                                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white' }}">
+                            {{ $label }}
+                        </button>
+                        @endforeach
+                    </div>
+
+                    {{-- Book filter --}}
+                    @if(!empty($allBooks))
                     <div class="relative flex-1 max-w-xs">
                         <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
@@ -126,11 +148,13 @@
                         class="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors">
                         Reset
                     </button>
+                    @endif
                 </div>
-                @endif
             </div>
 
-            @if(empty($users))
+            @php $hasAnyData = !empty($users) || !empty($anonUsers); @endphp
+
+            @if(!$hasAnyData)
             <div class="px-5 py-12 text-center text-sm text-slate-400">
                 Tidak ada aktivitas dalam {{ $h }} jam terakhir.
             </div>
@@ -148,17 +172,20 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-white/[0.04]">
+
+                        {{-- ── Registered users ── --}}
                         @foreach($users as $user)
                         @php
-                            $userBooks  = $books[$user->id] ?? [];
-                            $hasExpiry  = !empty($user->membership_expires);
-                            $isActive   = $hasExpiry && \Carbon\Carbon::parse($user->membership_expires)->isFuture();
-                            $isExpired  = $hasExpiry && !$isActive;
-                            $neverSubs  = !$user->ever_paid;
+                            $userBooks = $books[$user->id] ?? [];
+                            $hasExpiry = !empty($user->membership_expires);
+                            $isActive  = $hasExpiry && \Carbon\Carbon::parse($user->membership_expires)->isFuture();
+                            $isExpired = $hasExpiry && !$isActive;
+                            $neverSubs = !$user->ever_paid;
                         @endphp
 
                         {{-- Main Row --}}
                         <tr class="user-row-{{ $h }} hover:bg-slate-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors group"
+                            data-user-type="registered"
                             data-book-ids="{{ implode(',', array_column($userBooks, 'content_id')) }}"
                             data-chapters="{{ $user->chapters_read }}"
                             data-unique-chapters="{{ $user->unique_chapters_read }}"
@@ -179,7 +206,6 @@
                                     </div>
                                 </div>
                             </td>
-                            {{-- Langganan --}}
                             <td class="px-4 py-3.5 text-center">
                                 @if($isActive)
                                 <div class="inline-flex flex-col items-center gap-0.5">
@@ -241,7 +267,8 @@
                         </tr>
 
                         {{-- Expand: Book List --}}
-                        <tr id="books-{{ $h }}-{{ $user->id }}" class="hidden bg-slate-50/80 dark:bg-white/[0.015]">
+                        <tr id="books-{{ $h }}-{{ $user->id }}" class="hidden bg-slate-50/80 dark:bg-white/[0.015]"
+                            data-expand-for="registered">
                             <td colspan="6" class="px-5 py-3">
                                 @if(empty($userBooks))
                                 <p class="text-xs text-slate-400 italic">Tidak ada data buku.</p>
@@ -273,8 +300,107 @@
                                 @endif
                             </td>
                         </tr>
-
                         @endforeach
+
+                        {{-- ── Anonymous sessions (hidden by default) ── --}}
+                        @foreach($anonUsers as $anon)
+                        @php
+                            $anonBooks = $anonBookDets[$anon->session_id] ?? [];
+                            $anonKey   = 'anon-' . $h . '-' . md5($anon->session_id);
+                            $shortSess = strtoupper(substr($anon->session_id, 0, 8));
+                        @endphp
+
+                        <tr class="user-row-{{ $h }} hidden hover:bg-slate-50 dark:hover:bg-white/[0.02] cursor-pointer transition-colors group"
+                            data-user-type="anonymous"
+                            data-book-ids="{{ implode(',', array_column($anonBooks, 'content_id')) }}"
+                            data-chapters="{{ $anon->chapters_read }}"
+                            data-unique-chapters="{{ $anon->unique_chapters_read }}"
+                            data-books="{{ $anon->books_count }}"
+                            data-expand-id="{{ $anonKey }}"
+                            onclick="toggleBooks('{{ $anonKey }}')">
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                        <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-slate-600 dark:text-slate-300 leading-tight font-mono text-xs">
+                                            Sesi #{{ $shortSess }}
+                                        </p>
+                                        <p class="text-xs text-slate-400">—</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3.5 text-center">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 text-xs">
+                                    Anonymous
+                                </span>
+                            </td>
+                            <td class="px-4 py-3.5 text-center">
+                                <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $anon->chapters_read }}</span>
+                                @if($anon->unique_chapters_read < $anon->chapters_read)
+                                <div class="text-[10px] text-blue-400 mt-0.5">{{ $anon->unique_chapters_read }} unik</div>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3.5 text-center">
+                                <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $anon->books_count }}</span>
+                            </td>
+                            <td class="px-4 py-3.5 text-center">
+                                <span class="text-xs text-slate-400">—</span>
+                            </td>
+                            <td class="px-5 py-3.5 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <span class="text-xs text-slate-500 dark:text-slate-400">
+                                        {{ \Carbon\Carbon::parse($anon->last_activity)->diffForHumans() }}
+                                    </span>
+                                    <svg id="chevron-{{ $anonKey }}"
+                                        class="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </div>
+                            </td>
+                        </tr>
+
+                        {{-- Expand: Anonymous book list --}}
+                        <tr id="{{ $anonKey }}" class="hidden bg-slate-50/80 dark:bg-white/[0.015]"
+                            data-expand-for="anonymous">
+                            <td colspan="6" class="px-5 py-3">
+                                @if(empty($anonBooks))
+                                <p class="text-xs text-slate-400 italic">Tidak ada data buku.</p>
+                                @else
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    @foreach($anonBooks as $book)
+                                    <div class="flex items-start gap-2.5 p-2.5 rounded-lg bg-white dark:bg-white/[0.04] border border-slate-200/70 dark:border-white/[0.06]">
+                                        <div class="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                            </svg>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-medium text-slate-700 dark:text-slate-200 truncate" title="{{ $book->title }}">
+                                                {{ $book->title }}
+                                            </p>
+                                            <p class="text-[11px] text-slate-400 mt-0.5">
+                                                {{ $book->chapters_read }} chapter
+                                                @if($book->unique_chapters_read < $book->chapters_read)
+                                                <span class="text-blue-400">({{ $book->unique_chapters_read }} unik)</span>
+                                                @endif
+                                                · terakhir {{ \Carbon\Carbon::parse($book->last_read)->diffForHumans() }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+
                     </tbody>
                 </table>
             </div>
@@ -289,7 +415,11 @@
 
 @push('scripts')
 <script>
-    // Tab switching
+    // ── User-type filter state per tab (default: registered) ──
+    const userTypeFilter = { 1: 'reg', 6: 'reg', 24: 'reg' };
+    const bookFilterState = { 1: '', 6: '', 24: '' };
+
+    // ── Tab switching ──
     function switchTab(h) {
         [1, 6, 24].forEach(t => {
             document.getElementById('tab-panel-' + t).classList.add('hidden');
@@ -303,32 +433,73 @@
         active.classList.remove('text-slate-500', 'dark:text-slate-400');
     }
 
-    // Expand/collapse book detail rows
+    // ── Expand/collapse book detail rows ──
     function toggleBooks(key) {
-        const row     = document.getElementById('books-' + key);
+        // Registered: expand row id = "books-{h}-{userId}", chevron id = "chevron-{h}-{userId}"
+        // Anonymous:  expand row id = "anon-{h}-{hash}",    chevron id = "chevron-anon-{h}-{hash}"
+        const row     = document.getElementById('books-' + key) || document.getElementById(key);
         const chevron = document.getElementById('chevron-' + key);
         if (!row) return;
         const hidden = row.classList.toggle('hidden');
-        chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+        if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
     }
 
-    // Filter table by book
+    // ── User-type filter ──
+    function filterByUserType(h, type) {
+        userTypeFilter[h] = type;
+
+        // Update toggle button styles
+        ['reg', 'anon', 'all'].forEach(t => {
+            const btn = document.getElementById('ut-btn-' + h + '-' + t);
+            if (!btn) return;
+            if (t === type) {
+                btn.classList.add('bg-white', 'dark:bg-white/10', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+                btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+            } else {
+                btn.classList.remove('bg-white', 'dark:bg-white/10', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+                btn.classList.add('text-slate-500', 'dark:text-slate-400');
+            }
+        });
+
+        applyFilters(h);
+    }
+
+    // ── Book filter ──
     function filterByBook(h, contentId) {
-        const rows = document.querySelectorAll('.user-row-' + h);
+        bookFilterState[h] = contentId;
+        applyFilters(h);
+    }
+
+    // ── Core: apply both filters and sync KPI ──
+    function applyFilters(h) {
+        const uType    = userTypeFilter[h];
+        const bookId   = bookFilterState[h];
+        const rows     = document.querySelectorAll('.user-row-' + h);
         let visible = 0, totalChapters = 0, totalUniqueChapters = 0, bookSet = new Set();
 
         rows.forEach(tr => {
+            const rowType  = tr.dataset.userType;  // 'registered' | 'anonymous'
             const ids      = (tr.dataset.bookIds || '').split(',').filter(Boolean);
             const expandId = tr.dataset.expandId;
-            const expand   = expandId ? document.getElementById(expandId) : null;
-            const match    = !contentId || ids.includes(String(contentId));
+            // Registered expand: id="books-{expandId}", Anonymous expand: id="{expandId}" directly
+            const expand = expandId
+                ? (document.getElementById('books-' + expandId) || document.getElementById(expandId))
+                : null;
+
+            const typeMatch = (uType === 'all')
+                || (uType === 'reg'  && rowType === 'registered')
+                || (uType === 'anon' && rowType === 'anonymous');
+            const bookMatch = !bookId || ids.includes(String(bookId));
+            const match     = typeMatch && bookMatch;
 
             tr.classList.toggle('hidden', !match);
             if (!match && expand) {
                 expand.classList.add('hidden');
-                const chevron = document.getElementById('chevron-' + expandId.replace('books-', ''));
+                // Reset chevron — id pattern: "chevron-{expandId}" works for both types
+                const chevron = document.getElementById('chevron-' + expandId);
                 if (chevron) chevron.style.transform = '';
             }
+
             if (match) {
                 visible++;
                 totalChapters       += parseInt(tr.dataset.chapters || 0, 10);
@@ -341,18 +512,18 @@
         const badge = document.getElementById('user-count-' + h);
         if (badge) badge.textContent = visible + ' user';
 
-        // Sync KPI cards with visible rows
-        const kpiUsers    = document.getElementById('kpi-users-' + h);
+        // Sync KPI cards
+        const kpiUsers          = document.getElementById('kpi-users-' + h);
         const kpiChapters       = document.getElementById('kpi-chapters-' + h);
         const kpiUniqueChapters = document.getElementById('kpi-unique-chapters-' + h);
         const kpiBooks          = document.getElementById('kpi-books-' + h);
         if (kpiUsers)           kpiUsers.textContent           = visible.toLocaleString();
         if (kpiChapters)        kpiChapters.textContent        = totalChapters.toLocaleString();
         if (kpiUniqueChapters)  kpiUniqueChapters.textContent  = totalUniqueChapters.toLocaleString() + ' unik';
-        if (kpiBooks)           kpiBooks.textContent           = (contentId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
+        if (kpiBooks)           kpiBooks.textContent           = (bookId ? (bookSet.size > 0 ? 1 : 0) : bookSet.size).toLocaleString();
     }
 
-    // Auto-refresh every 90 seconds
+    // ── Auto-refresh every 90 seconds ──
     let countdown = 90;
     setInterval(() => {
         countdown--;
