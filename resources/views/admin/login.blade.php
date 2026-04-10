@@ -49,21 +49,28 @@
             66% { transform: translate(-20px, 20px) scale(0.95); }
         }
 
-        /* ── Particle dots ── */
-        .particles { position: fixed; inset: 0; pointer-events: none; }
-        .particle {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            border-radius: 50%;
-            background: rgba(139,92,246,0.6);
-            animation: particleFly linear infinite;
-        }
+        /* ── Particles ── */
+        .particles { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+        .particle  { position: absolute; pointer-events: none; }
+
         @keyframes particleFly {
-            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-10vh) translateX(var(--drift)); opacity: 0; }
+            0%   { transform: translateY(100vh) translateX(0) rotate(0deg);            opacity: 0; }
+            8%   { opacity: 1; }
+            92%  { opacity: 1; }
+            100% { transform: translateY(-10vh) translateX(var(--drift)) rotate(var(--rot)); opacity: 0; }
+        }
+        @keyframes electricFlicker {
+            0%,100% { opacity: 1; }
+            15% { opacity: 0.15; }
+            30% { opacity: 1; }
+            55% { opacity: 0.4; }
+            70% { opacity: 1; }
+            88% { opacity: 0.1; }
+        }
+        @keyframes boltPulse {
+            0%,100% { filter: brightness(1)   drop-shadow(0 0 4px  rgba(6,182,212,0.8)); }
+            40%     { filter: brightness(0.2) drop-shadow(0 0 2px  rgba(6,182,212,0.3)); }
+            60%     { filter: brightness(2.5) drop-shadow(0 0 12px rgba(6,182,212,1));   }
         }
 
         /* ── Card ── */
@@ -262,6 +269,7 @@
     <div class="orb orb-2"></div>
     <div class="orb orb-3"></div>
     <div class="particles" id="particles"></div>
+    <canvas id="electric-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;"></canvas>
 
     {{-- Main layout --}}
     <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; position:relative; z-index:10;">
@@ -368,23 +376,199 @@
     </div>
 
 <script>
-    // Particles
+    // ── Varied particles ──
     (function() {
         const container = document.getElementById('particles');
-        for (let i = 0; i < 25; i++) {
-            const p = document.createElement('div');
-            p.className = 'particle';
-            p.style.cssText = `
-                left: ${Math.random() * 100}%;
-                width: ${Math.random() * 2 + 1}px;
-                height: ${Math.random() * 2 + 1}px;
-                animation-duration: ${Math.random() * 15 + 10}s;
-                animation-delay: ${Math.random() * -20}s;
-                --drift: ${(Math.random() - 0.5) * 100}px;
-                opacity: ${Math.random() * 0.5 + 0.2};
-            `;
-            container.appendChild(p);
+
+        // Palette: [r, g, b]
+        const pal = [
+            [139, 92,  246],   // violet
+            [ 99,102,  241],   // indigo
+            [  6,182,  212],   // cyan
+            [ 96,165,  250],   // blue
+            [167,139,  250],   // light-purple
+            [250,204,   21],   // electric yellow (bolts only)
+        ];
+
+        const shapes = ['cube','cube','diamond','diamond','ring','shard','shard','cross','bolt','bolt'];
+
+        function make(shape, [r,g,b], size) {
+            const el = document.createElement('div');
+            el.className = 'particle';
+            const c = `${r},${g},${b}`;
+
+            if (shape === 'cube') {
+                Object.assign(el.style, {
+                    width: size+'px', height: size+'px',
+                    background: `rgba(${c},0.07)`,
+                    border: `1px solid rgba(${c},0.42)`,
+                    borderRadius: '4px',
+                    backdropFilter: 'blur(4px)',
+                    boxShadow: `inset 0 0 8px rgba(255,255,255,0.07), 0 0 14px rgba(${c},0.22)`,
+                });
+            } else if (shape === 'diamond') {
+                Object.assign(el.style, {
+                    width: size+'px', height: size+'px',
+                    background: `rgba(${c},0.11)`,
+                    border: `1px solid rgba(${c},0.5)`,
+                    clipPath: 'polygon(50% 0%,100% 50%,50% 100%,0% 50%)',
+                    boxShadow: `0 0 12px rgba(${c},0.35)`,
+                });
+            } else if (shape === 'ring') {
+                const s2 = size * 1.3;
+                Object.assign(el.style, {
+                    width: s2+'px', height: s2+'px',
+                    background: 'transparent',
+                    border: `1.5px solid rgba(${c},0.65)`,
+                    borderRadius: '50%',
+                    boxShadow: `0 0 9px rgba(${c},0.3), inset 0 0 6px rgba(${c},0.1)`,
+                });
+            } else if (shape === 'shard') {
+                // irregular triangle
+                const ax=35+Math.random()*25, bx=65+Math.random()*30, by=60+Math.random()*30, cx=Math.random()*30, cy=65+Math.random()*25;
+                Object.assign(el.style, {
+                    width: (size*1.2)+'px', height: (size*1.3)+'px',
+                    background: `rgba(${c},0.13)`,
+                    border: `1px solid rgba(${c},0.45)`,
+                    clipPath: `polygon(${ax}% 0%,${bx}% ${by}%,${cx}% ${cy}%)`,
+                    boxShadow: `0 0 10px rgba(${c},0.25)`,
+                });
+            } else if (shape === 'cross') {
+                Object.assign(el.style, {
+                    width: size+'px', height: size+'px',
+                    background: `rgba(${c},0.22)`,
+                    clipPath: 'polygon(33% 0%,66% 0%,66% 33%,100% 33%,100% 66%,66% 66%,66% 100%,33% 100%,33% 66%,0% 66%,0% 33%,33% 33%)',
+                    boxShadow: `0 0 14px rgba(${c},0.5)`,
+                });
+            } else if (shape === 'bolt') {
+                const bw = Math.round(size*0.65), bh = Math.round(size*1.25);
+                Object.assign(el.style, {
+                    width: bw+'px', height: bh+'px',
+                });
+                el.innerHTML = `<svg width="${bw}" height="${bh}" viewBox="0 0 10 17" xmlns="http://www.w3.org/2000/svg">`
+                    + `<polygon points="6.5,0 2,9.5 5.5,9.5 3.5,17 8,7 4.5,7" fill="rgba(${c},0.95)"`
+                    + ` filter="url(#boltGlow${r})"/>`
+                    + `<defs><filter id="boltGlow${r}" x="-80%" y="-80%" width="260%" height="260%">`
+                    + `<feGaussianBlur stdDeviation="2" result="blur"/>`
+                    + `<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>`
+                    + `</filter></defs></svg>`;
+            }
+
+            return el;
         }
+
+        for (let i = 0; i < 38; i++) {
+            const shape = shapes[Math.floor(Math.random() * shapes.length)];
+            // Bolts prefer electric yellow or cyan
+            const colorPool = shape === 'bolt'
+                ? [[6,182,212],[250,204,21],[96,165,250]]
+                : pal.slice(0,5);
+            const color = colorPool[Math.floor(Math.random() * colorPool.length)];
+            const size  = Math.random() * 11 + 6;   // 6–17 px
+            const dur   = Math.random() * 20 + 12;
+            const delay = Math.random() * -32;
+            const drift = (Math.random() - 0.5) * 140;
+            const rot   = (Math.random() - 0.5) * 720;
+
+            const el = make(shape, color, size);
+            el.style.left   = Math.random() * 100 + '%';
+            el.style.opacity = (Math.random() * 0.45 + 0.3).toFixed(2);
+            el.style.setProperty('--drift', drift + 'px');
+            el.style.setProperty('--rot',   rot   + 'deg');
+
+            if (shape === 'bolt') {
+                el.style.animation = `particleFly ${dur}s linear ${delay}s infinite, electricFlicker ${(Math.random()*0.5+0.25).toFixed(2)}s ease-in-out ${delay}s infinite`;
+            } else {
+                el.style.animation = `particleFly ${dur}s linear ${delay}s infinite`;
+            }
+
+            container.appendChild(el);
+        }
+    })();
+
+    // ── Canvas electric arcs ──
+    (function() {
+        const canvas = document.getElementById('electric-canvas');
+        const ctx    = canvas.getContext('2d');
+
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Recursive fractal bolt between two points
+        function bolt(x1, y1, x2, y2, spread, depth) {
+            if (depth === 0) {
+                ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+                return;
+            }
+            const mx = (x1+x2)/2, my = (y1+y2)/2;
+            const perp = Math.atan2(y2-y1, x2-x1) + Math.PI/2;
+            const ofs  = (Math.random()-0.5) * spread;
+            const bx   = mx + Math.cos(perp)*ofs;
+            const by   = my + Math.sin(perp)*ofs;
+            bolt(x1,y1, bx,by, spread*0.6, depth-1);
+            bolt(bx,by, x2,y2, spread*0.6, depth-1);
+            // random branch
+            if (Math.random() < 0.28 && depth > 1) {
+                const bl = 0.3 + Math.random()*0.45;
+                bolt(bx, by,
+                     bx + (x2-bx)*bl + (Math.random()-0.5)*25,
+                     by + (y2-by)*bl + (Math.random()-0.5)*25,
+                     spread*0.3, depth-2);
+            }
+        }
+
+        const arcPal = [[6,182,212],[139,92,246],[96,165,250]];
+        let   arcs   = [];
+        let   nextAt = performance.now() + 1200 + Math.random()*2500;
+
+        function addArc() {
+            const [r,g,b] = arcPal[Math.floor(Math.random()*arcPal.length)];
+            const x   = Math.random() * canvas.width;
+            const y   = canvas.height * (0.35 + Math.random()*0.55);
+            const len = 60 + Math.random()*160;
+            const ang = -(Math.PI/2) + (Math.random()-0.5)*0.9; // roughly upward
+            arcs.push({ x1:x, y1:y, x2:x+Math.cos(ang)*len, y2:y+Math.sin(ang)*len,
+                        spread:len*0.38, alpha:0.85+Math.random()*0.15,
+                        decay:0.06+Math.random()*0.07, r,g,b });
+        }
+
+        function frame(now) {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+
+            if (now >= nextAt) {
+                nextAt = now + 1200 + Math.random()*4000;
+                addArc();
+                if (Math.random() < 0.35) addArc();
+            }
+
+            arcs = arcs.filter(a => a.alpha > 0.04);
+            arcs.forEach(a => {
+                const col = `rgba(${a.r},${a.g},${a.b},${a.alpha.toFixed(2)})`;
+                ctx.save();
+                ctx.globalAlpha = a.alpha * 0.85;
+                ctx.strokeStyle = col;
+                ctx.lineWidth   = 0.75;
+                ctx.shadowBlur  = 12;
+                ctx.shadowColor = col;
+                bolt(a.x1,a.y1, a.x2,a.y2, a.spread, 4);
+
+                // white bright core on fresh bolts
+                if (a.alpha > 0.65) {
+                    ctx.globalAlpha = (a.alpha-0.65)*0.45;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                    ctx.lineWidth   = 0.35;
+                    ctx.shadowBlur  = 6;
+                    ctx.shadowColor = 'white';
+                    bolt(a.x1,a.y1, a.x2,a.y2, a.spread*0.45, 3);
+                }
+                ctx.restore();
+                a.alpha -= a.decay;
+            });
+
+            requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
     })();
 
     // Toggle password
