@@ -109,11 +109,11 @@
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-400">Per halaman:</span>
                         <div class="flex gap-0.5 p-0.5 rounded-lg bg-slate-100 dark:bg-white/[0.05]">
-                            @foreach([30, 50] as $pp)
+                            @foreach([25, 50, 100] as $pp)
                             <button onclick="setPerPage({{ $h }}, {{ $pp }})"
                                 id="pp-btn-{{ $h }}-{{ $pp }}"
                                 class="px-2.5 py-0.5 text-xs font-medium rounded-md transition-all
-                                       {{ $pp === 30 ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white' }}">
+                                       {{ $pp === 25 ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white' }}">
                                 {{ $pp }}
                             </button>
                             @endforeach
@@ -437,7 +437,7 @@
     // ── State per tab ──
     const userTypeFilter = { 1: 'reg', 6: 'reg', 24: 'reg' };
     const bookFilterState = { 1: '', 6: '', 24: '' };
-    const perPage  = { 1: 30, 6: 30, 24: 30 };
+    const perPage  = { 1: 25, 6: 25, 24: 25 };
     const currPage = { 1: 1,  6: 1,  24: 1  };
 
     // matchedRows[h] = array of <tr> elements that pass current filters (main rows only, not expand rows)
@@ -470,7 +470,7 @@
     function setPerPage(h, pp) {
         perPage[h]  = pp;
         currPage[h] = 1;
-        [30, 50].forEach(p => {
+        [25, 50, 100].forEach(p => {
             const btn = document.getElementById('pp-btn-' + h + '-' + p);
             if (!btn) return;
             if (p === pp) {
