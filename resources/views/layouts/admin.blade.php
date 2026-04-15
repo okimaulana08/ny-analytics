@@ -304,6 +304,15 @@
                 Scheduled Reports
             </a>
 
+            <div class="text-white/20 text-[10px] font-semibold px-3 py-2 mt-3 uppercase tracking-widest">Export</div>
+
+            <a href="{{ route('admin.exports.index') }}" class="nav-link {{ request()->routeIs('admin.exports.*') ? 'active' : '' }}">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export Data
+            </a>
+
             <div class="text-white/20 text-[10px] font-semibold px-3 py-2 mt-3 uppercase tracking-widest">AI Tools</div>
 
             <a href="{{ route('admin.novel.stories.index') }}" class="nav-link {{ request()->routeIs('admin.novel.*') ? 'active' : '' }}">

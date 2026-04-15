@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\Crm\IndividualEmailController;
 use App\Http\Controllers\Admin\Crm\ScheduledReportController;
 use App\Http\Controllers\Admin\Crm\WaTriggerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\Novel\NovelChapterController;
 use App\Http\Controllers\Admin\Novel\NovelExportController;
 use App\Http\Controllers\Admin\Novel\NovelStoryController;
@@ -75,6 +76,10 @@ Route::middleware(['admin.auth', 'admin.log'])->prefix('admin')->name('admin.')-
     Route::get('/reports/user-recommend/{userId}', [ReportController::class, 'userRecommend'])->name('reports.user-recommend');
     Route::get('/reports/user-recommend/{userId}/email-preview', [ReportController::class, 'previewRecommendEmail'])->name('reports.user-recommend.email-preview');
     Route::post('/reports/user-recommend/{userId}/send-email', [ReportController::class, 'sendRecommendEmail'])->name('reports.user-recommend.send-email');
+
+    // Exports
+    Route::get('/exports', [ExportController::class, 'index'])->name('exports.index');
+    Route::get('/exports/all-users', [ExportController::class, 'allUsers'])->name('exports.all-users');
 
     Route::prefix('assistant')->name('assistant.')->group(function () {
         Route::get('/stakeholder', [AssistantController::class, 'stakeholder'])->name('stakeholder');
